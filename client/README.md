@@ -1,4 +1,4 @@
-# Urban Mobility Analysis - Frontend Client
+# Urban Mobility Analysis - Client
 
 Angular frontend for urban mobility analysis system.
 
