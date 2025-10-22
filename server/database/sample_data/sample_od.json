@@ -1,0 +1,50 @@
+[
+  {
+    "user_id": 1,
+    "origin_latitude": 48.8566,
+    "origin_longitude": 2.3522,
+    "destination_latitude": 48.8584,
+    "destination_longitude": 2.2945,
+    "start_time": "2024-01-15T08:30:00Z",
+    "end_time": "2024-01-15T09:00:00Z",
+    "distance_meters": 4500,
+    "duration_seconds": 1800,
+    "transport_mode": "walking"
+  },
+  {
+    "user_id": 2,
+    "origin_latitude": 48.8606,
+    "origin_longitude": 2.3376,
+    "destination_latitude": 48.8809,
+    "destination_longitude": 2.3553,
+    "start_time": "2024-01-15T09:15:00Z",
+    "end_time": "2024-01-15T09:45:00Z",
+    "distance_meters": 2800,
+    "duration_seconds": 1800,
+    "transport_mode": "metro"
+  },
+  {
+    "user_id": 3,
+    "origin_latitude": 48.8530,
+    "origin_longitude": 2.3499,
+    "destination_latitude": 48.8542,
+    "destination_longitude": 2.3327,
+    "start_time": "2024-01-15T10:00:00Z",
+    "end_time": "2024-01-15T10:20:00Z",
+    "distance_meters": 1500,
+    "duration_seconds": 1200,
+    "transport_mode": "bicycle"
+  },
+  {
+    "user_id": 4,
+    "origin_latitude": 48.8584,
+    "origin_longitude": 2.2945,
+    "destination_latitude": 48.8606,
+    "destination_longitude": 2.3376,
+    "start_time": "2024-01-15T11:00:00Z",
+    "end_time": "2024-01-15T11:30:00Z",
+    "distance_meters": 3800,
+    "duration_seconds": 1800,
+    "transport_mode": "bus"
+  }
+]

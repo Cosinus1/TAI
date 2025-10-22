@@ -1,0 +1,36 @@
+{
+  "test_gps_traces": [
+    {
+      "user_id": 1,
+      "timestamp": "2024-01-15T08:30:00Z",
+      "latitude": 48.8566,
+      "longitude": 2.3522,
+      "altitude": 35.0,
+      "speed": 5.2,
+      "accuracy": 10.0
+    }
+  ],
+  "test_pois": [
+    {
+      "name": "Test POI",
+      "category": "test",
+      "latitude": 48.8566,
+      "longitude": 2.3522,
+      "address": "Test Address"
+    }
+  ],
+  "test_od_data": [
+    {
+      "user_id": 1,
+      "origin_latitude": 48.8566,
+      "origin_longitude": 2.3522,
+      "destination_latitude": 48.8584,
+      "destination_longitude": 2.2945,
+      "start_time": "2024-01-15T08:30:00Z",
+      "end_time": "2024-01-15T09:00:00Z",
+      "distance_meters": 4500,
+      "duration_seconds": 1800,
+      "transport_mode": "walking"
+    }
+  ]
+}

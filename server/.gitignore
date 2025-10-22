@@ -1,0 +1,44 @@
+# Django
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Database
+*.sqlite3
+*.db
+
+# Environment variables
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Jupyter
+.ipynb_checkpoints/
+
+# ML Models
+server/apps/ml/trained_models/*.pkl
+server/apps/ml/trained_models/*.joblib
+
+# Static files
+staticfiles/
+media/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
