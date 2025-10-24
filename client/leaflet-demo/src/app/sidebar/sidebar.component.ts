@@ -19,6 +19,9 @@ export class SidebarComponent {
   @Input() showCafe = true;
   @Input() showCinema = true;
   @Input() showODLine = true;
+  // list of available taxi ids (populated by parent if taxi data available)
+  @Input() taxiList: string[] = [];
+  @Input() selectedTaxiId: string | null = null;
 
   @Output() odChange = new EventEmitter<number>();
   @Output() filtersChange = new EventEmitter<{ restaurant: boolean; cafe: boolean; cinema: boolean }>();
@@ -26,6 +29,7 @@ export class SidebarComponent {
   @Output() reset = new EventEmitter<void>();
   @Output() showChange = new EventEmitter<boolean>();
   @Output() taxiRequest = new EventEmitter<void>();
+  @Output() taxiSelect = new EventEmitter<string | null>();
 
   emitOdChange(e: Event) { const select = e.target as HTMLSelectElement; this.odChange.emit(Number(select.value)); }
   onFiltersChange(f: { restaurant: boolean; cafe: boolean; cinema: boolean }) { this.filtersChange.emit(f); }
@@ -33,4 +37,5 @@ export class SidebarComponent {
   onReset() { this.reset.emit(); }
   onShowChange(v: boolean) { this.showChange.emit(v); }
   requestTaxi() { this.taxiRequest.emit(); }
+  selectTaxi(e: Event) { const s = e.target as HTMLSelectElement; this.taxiSelect.emit(s.value === '' ? null : s.value); }
 }

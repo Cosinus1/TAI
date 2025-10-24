@@ -7,6 +7,14 @@
   </select>
 </div>
 
+<div class="group">
+  <label for="taxiSelect">Choisir un taxi :</label>
+  <select id="taxiSelect" [value]="selectedTaxiId ?? ''" (change)="selectTaxi($event)">
+    <option value="">Tous les taxis</option>
+    <option *ngFor="let t of taxiList" [value]="t">{{t}}</option>
+  </select>
+</div>
+
 <poi-filters
   [showRestaurant]="showRestaurant"
   [showCafe]="showCafe"

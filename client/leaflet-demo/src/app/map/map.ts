@@ -1,4 +1,4 @@
-import { Component, AfterViewInit, signal, Input } from '@angular/core';
+import { Component, AfterViewInit, signal, Input, ChangeDetectorRef } from '@angular/core';
 import * as L from 'leaflet';
 import { PoiFiltersComponent } from '../poi-filters/poi-filters.component';
 import { OdToggleComponent } from '../od-toggle/od-toggle.component';
@@ -21,10 +21,16 @@ export class MapComponent implements AfterViewInit {
   private odMarkers: L.Marker[] = [];
   private poiMarkers: L.Marker[] = [];
   // taxi markers (separate from POI markers) keyed by user_id
-  private taxiMarkers: Map<number, L.Marker> = new Map();
+  private taxiMarkers: Map<string, L.Marker> = new Map();
+  // markers for every taxi point: taxi_id -> array of markers
+  private taxiPointMarkers: Map<string, L.Marker[]> = new Map();
   private _displayMode: 'od' | 'taxi' = 'od';
 
-  constructor(private taxiService: TaxiService) {}
+  constructor(private taxiService: TaxiService, private cdr: ChangeDetectorRef) {}
+  // per-taxi trajectory storage: taxi_id -> array of raw points
+  private taxiPointsMap: Map<string, any[]> = new Map();
+  taxiList: string[] = [];
+  selectedTaxiId: string | null = null;
 
   // --- Données OD ---
   odPairs: ODPair[] = [
@@ -129,9 +135,9 @@ export class MapComponent implements AfterViewInit {
       // fetch and show taxi points
       await this.fetchTaxiPoints();
     } else {
-      // clear taxi markers then redraw OD and POIs
-      this.taxiMarkers.forEach(m => { if (this.map) this.map.removeLayer(m); });
-      this.taxiMarkers.clear();
+      // clear taxi point markers then redraw OD and POIs
+      this.taxiPointMarkers.forEach(arr => arr.forEach(m => { if (this.map && this.map.hasLayer(m)) this.map.removeLayer(m); }));
+      this.taxiPointMarkers.clear();
       // redraw current OD
       this.updateMap();
     }
@@ -246,6 +252,59 @@ export class MapComponent implements AfterViewInit {
     this.updateODLine();
   }
 
+  // handle taxi selection from sidebar: null => show all latest positions, otherwise show selected taxi trajectory
+  onTaxiSelect(taxiId: string | null) {
+    this.selectedTaxiId = taxiId;
+    // redraw visualization according to selection
+    if (this._displayMode !== 'taxi' || !this.map) return;
+    // remove any previous trajectory layer we might have drawn
+    if (this.odLine) { this.map.removeLayer(this.odLine); this.odLine = null; }
+
+    if (taxiId === null) {
+      // show all points for all taxis: add every marker to map
+      const bounds: L.LatLngExpression[] = [];
+      this.taxiPointMarkers.forEach((arr, tid) => {
+        arr.forEach(m => {
+          if (!this.map) return;
+          if (!this.map.hasLayer(m)) this.map.addLayer(m);
+          bounds.push(m.getLatLng());
+        });
+      });
+      if (bounds.length) this.map.fitBounds(L.latLngBounds(bounds), { padding: [40, 40] });
+    } else {
+      // show the full trajectory for the selected taxi
+      // First, ensure only markers for selected taxi are visible
+      const bounds: L.LatLngExpression[] = [];
+      this.taxiPointMarkers.forEach((arr, tid) => {
+        arr.forEach(m => {
+          if (!this.map) return;
+          if (tid === taxiId) {
+            if (!this.map.hasLayer(m)) this.map.addLayer(m);
+            bounds.push(m.getLatLng());
+          } else {
+            if (this.map.hasLayer(m)) this.map.removeLayer(m);
+          }
+        });
+      });
+
+      const points = this.taxiPointsMap.get(taxiId) ?? [];
+      if (points.length === 0) return;
+      // convert to latlng and sort by timestamp
+      const latlngs = points
+        .slice()
+        .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+        .map(p => [p.latitude ?? p.lat ?? null, p.longitude ?? p.lon ?? p.lng ?? null]);
+      const validLatlngs = (latlngs as any[]).filter(arr => typeof arr[0] === 'number' && typeof arr[1] === 'number');
+
+      // draw polyline
+      if (this.odLine) { this.map.removeLayer(this.odLine); this.odLine = null; }
+      this.odLine = L.polyline(validLatlngs as any, { color: 'orange', weight: 4, opacity: 0.8 }).addTo(this.map);
+      // fit bounds to trajectory
+      const b = L.latLngBounds(validLatlngs as any);
+      this.map.fitBounds(b, { padding: [40, 40] });
+    }
+  }
+
   // --- Récupérer un point de taxi (mock) depuis le front et l'afficher ---
   async fetchTaxiPoints(): Promise<void> {
     if (!this.map) return;
@@ -261,37 +320,61 @@ export class MapComponent implements AfterViewInit {
         iconAnchor: [18, 36],
         popupAnchor: [0, -30]
       });
-
-      const bounds: L.LatLngExpression[] = [];
-
-      points.forEach((p: any, idx: number) => {
-        const userId = typeof p.user_id === 'number' ? p.user_id : idx;
-        const lat = p.latitude ?? p.lat ?? null;
-        const lng = p.longitude ?? p.lon ?? p.lng ?? null;
-        if (typeof lat !== 'number' || typeof lng !== 'number') {
-          console.warn('Point taxi invalide (mock)', p);
-          return;
-        }
-
-        const latlng: L.LatLngExpression = [lat, lng];
-        bounds.push(latlng);
-
-        if (this.taxiMarkers.has(userId)) {
-          // update existing marker position and popup
-          const m = this.taxiMarkers.get(userId)!;
-          m.setLatLng(latlng);
-          m.setPopupContent(`<b>Taxi</b><br/>user_id: ${p.user_id || ''}<br/>time: ${p.timestamp || ''}`);
-        } else {
-          const m = L.marker(latlng, { icon: taxiIcon })
-            .addTo(this.map!)
-            .bindPopup(`<b>Taxi</b><br/>user_id: ${p.user_id || ''}<br/>time: ${p.timestamp || ''}`);
-          this.taxiMarkers.set(userId, m);
-        }
+      // Group points by taxi_id and store trajectories
+      this.taxiPointsMap.clear();
+      const byTaxi = new Map<string, any[]>();
+      points.forEach((raw: any, idx: number) => {
+        const norm = typeof this.taxiService.normalizeTdrivePoint === 'function'
+          ? this.taxiService.normalizeTdrivePoint(raw)
+          : { id: raw.id ?? null, taxi_id: raw.user_id ?? raw.taxi_id ?? String(idx), timestamp: raw.timestamp, lat: raw.latitude ?? raw.lat ?? null, lon: raw.longitude ?? raw.lon ?? raw.lng ?? null, raw };
+        const tid = String(norm.taxi_id ?? idx);
+        if (!byTaxi.has(tid)) byTaxi.set(tid, []);
+        byTaxi.get(tid)!.push({ ...raw, _norm: norm });
       });
 
-      // Fit map to show all taxi markers (if any)
-      if (bounds.length > 0) {
-        const b = L.latLngBounds(bounds as any);
+  // update taxiPointsMap and taxiList (assign new array reference so OnPush children detect change)
+  this.taxiPointsMap.clear();
+  byTaxi.forEach((arr, tid) => this.taxiPointsMap.set(tid, arr));
+  this.taxiList = Array.from(byTaxi.keys());
+  // notify Angular change detection (Sidebar is OnPush)
+  try { this.cdr.markForCheck(); } catch (e) { /* ignore in case not available */ }
+
+      // remove previous per-point markers
+      this.taxiPointMarkers.forEach(arr => arr.forEach(m => { if (this.map && this.map.hasLayer(m)) this.map.removeLayer(m); }));
+      this.taxiPointMarkers.clear();
+
+      // create a small red-dot SVG icon for point markers
+      const redDotSvg = encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12'><circle cx='6' cy='6' r='4' fill='red'/></svg>");
+      const redDotUrl = `data:image/svg+xml;charset=UTF-8,${redDotSvg}`;
+      const redDotIcon = L.icon({ iconUrl: redDotUrl, iconSize: [12, 12], iconAnchor: [6, 6], popupAnchor: [0, -6] });
+
+      // Display every point as a small red dot; store markers per taxi
+      const visibleBounds: L.LatLngExpression[] = [];
+      byTaxi.forEach((arr, tid) => {
+        const markers: L.Marker[] = [];
+        // iterate all points for this taxi
+        arr.forEach((raw: any) => {
+          const norm = raw._norm;
+          const lat = norm.lat;
+          const lng = norm.lon;
+          if (typeof lat !== 'number' || typeof lng !== 'number') return;
+          const latlng: L.LatLngExpression = [lat, lng];
+
+          // create marker (small red dot)
+          const m = L.marker(latlng, { icon: redDotIcon }).bindPopup(`<b>Taxi point</b><br/>taxi_id: ${tid}<br/>time: ${norm.timestamp || ''}`);
+          // decide whether to add to map now depending on selection
+          if (this.selectedTaxiId === null || this.selectedTaxiId === tid) {
+            m.addTo(this.map!);
+            visibleBounds.push(latlng);
+          }
+          markers.push(m);
+        });
+        this.taxiPointMarkers.set(tid, markers);
+      });
+
+      // Fit map to show visible points (if any)
+      if (visibleBounds.length > 0) {
+        const b = L.latLngBounds(visibleBounds as any);
         this.map.fitBounds(b, { padding: [40, 40] });
       }
     } catch (err) {

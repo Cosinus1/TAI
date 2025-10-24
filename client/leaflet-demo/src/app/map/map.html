@@ -7,12 +7,15 @@
       [showCafe]="showCafe()"
       [showCinema]="showCinema()"
       [showODLine]="showODLine()"
+      [taxiList]="taxiList"
+      [selectedTaxiId]="selectedTaxiId"
         (odChange)="onODChange($event)"
         (filtersChange)="onFiltersChange($event)"
         (apply)="applyOptions()"
         (reset)="resetOptions()"
   (showChange)="onODToggle($event)"
-  (taxiRequest)="fetchTaxiPoints()">
+  (taxiRequest)="fetchTaxiPoints()"
+  (taxiSelect)="onTaxiSelect($event)">
     </app-sidebar>
   </aside>
 
