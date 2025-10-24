@@ -1,0 +1,3 @@
+<app-topbar [mode]="displayMode()" (modeChange)="onModeChange($event)"></app-topbar>
+<app-map [displayMode]="displayMode()"></app-map>
+<router-outlet></router-outlet>

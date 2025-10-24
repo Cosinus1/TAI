@@ -1,0 +1,22 @@
+<div class="map-layout">
+  <aside class="sidebar">
+    <app-sidebar
+      [odPairs]="odPairs"
+      [selectedIndex]="getSelectedIndex()"
+      [showRestaurant]="showRestaurant()"
+      [showCafe]="showCafe()"
+      [showCinema]="showCinema()"
+      [showODLine]="showODLine()"
+        (odChange)="onODChange($event)"
+        (filtersChange)="onFiltersChange($event)"
+        (apply)="applyOptions()"
+        (reset)="resetOptions()"
+        (showChange)="onODToggle($event)"
+        (taxiRequest)="fetchTaxiPoint()">
+    </app-sidebar>
+  </aside>
+
+  <main class="map-container">
+    <div id="map"></div>
+  </main>
+</div>

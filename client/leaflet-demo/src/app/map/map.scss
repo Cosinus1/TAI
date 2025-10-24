@@ -1,0 +1,33 @@
+/* Layout container */
+.map-layout {
+  display: flex;
+  height: 100vh; /* full viewport */
+}
+
+/* Sidebar */
+.sidebar {
+  width: 260px;
+  background: #f8f9fb;
+  border-right: 1px solid #e3e6ea;
+  padding: 12px;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.sidebar h3 { margin-top: 0; }
+.sidebar .group { margin: 10px 0; }
+.sidebar .group label { display: block; margin: 6px 0; font-size: 14px; }
+.sidebar .actions { display: flex; gap: 8px; }
+.sidebar button { padding: 6px 10px; cursor: pointer; border: 1px solid #cfd6dd; background: #fff; }
+
+/* Map container */
+.map-container {
+  flex: 1;
+  position: relative;
+}
+
+#map {
+  height: 100%;
+  width: 100%;
+}
+
