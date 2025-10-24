@@ -4,12 +4,14 @@ import { PoiFiltersComponent } from '../poi-filters/poi-filters.component';
 import { OdToggleComponent } from '../od-toggle/od-toggle.component';
 import { SidebarComponent } from '../sidebar/sidebar.component';
 import type { ODPair } from '../models/od.model';
+import { TaxiService } from '../services/taxi.service';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-map',
   templateUrl: './map.html',
   standalone: true,
-  imports: [PoiFiltersComponent, OdToggleComponent, SidebarComponent],
+  imports: [SidebarComponent],
   styleUrls: ['./map.scss']
 })
 export class MapComponent implements AfterViewInit {
@@ -18,9 +20,11 @@ export class MapComponent implements AfterViewInit {
   private map: L.Map | undefined;
   private odMarkers: L.Marker[] = [];
   private poiMarkers: L.Marker[] = [];
-  // taxi marker (separate from POI markers)
-  private taxiMarker: L.Marker | null = null;
+  // taxi markers (separate from POI markers) keyed by user_id
+  private taxiMarkers: Map<number, L.Marker> = new Map();
   private _displayMode: 'od' | 'taxi' = 'od';
+
+  constructor(private taxiService: TaxiService) {}
 
   // --- Données OD ---
   odPairs: ODPair[] = [
@@ -122,11 +126,12 @@ export class MapComponent implements AfterViewInit {
       if (this.odLine) { this.map.removeLayer(this.odLine); this.odLine = null; }
       this.odMarkers = [];
       this.poiMarkers = [];
-      // fetch and show taxi point
-      await this.fetchTaxiPoint();
+      // fetch and show taxi points
+      await this.fetchTaxiPoints();
     } else {
-      // clear taxi marker then redraw OD and POIs
-      if (this.taxiMarker) { this.map.removeLayer(this.taxiMarker); this.taxiMarker = null; }
+      // clear taxi markers then redraw OD and POIs
+      this.taxiMarkers.forEach(m => { if (this.map) this.map.removeLayer(m); });
+      this.taxiMarkers.clear();
       // redraw current OD
       this.updateMap();
     }
@@ -241,17 +246,15 @@ export class MapComponent implements AfterViewInit {
     this.updateODLine();
   }
 
-  // --- Récupérer un point de taxi depuis le serveur et l'afficher ---
-  async fetchTaxiPoint(): Promise<void> {
+  // --- Récupérer un point de taxi (mock) depuis le front et l'afficher ---
+  async fetchTaxiPoints(): Promise<void> {
     if (!this.map) return;
     try {
-      const res = await fetch('/api/mobility/sample_taxi/');
-      const data = await res.json();
-      if (!data.ok) { console.error('Erreur serveur:', data.error); return; }
-      const p = data.point;
-      if (!p || !p.latitude || !p.longitude) { console.warn('Point taxi invalide', p); return; }
+      const res = await firstValueFrom(this.taxiService.getSampleTaxiPointsMock());
+      if (!res?.ok || !Array.isArray(res.points)) { console.error('Erreur serveur (mock points):', res); return; }
+      const points = res.points;
 
-      // Create a taxi icon
+      // prepare taxi icon
       const taxiIcon = L.icon({
         iconUrl: 'https://cdn-icons-png.flaticon.com/512/743/743007.png',
         iconSize: [36, 36],
@@ -259,17 +262,40 @@ export class MapComponent implements AfterViewInit {
         popupAnchor: [0, -30]
       });
 
-      // place/update taxi marker separately
-      if (this.taxiMarker) { this.map.removeLayer(this.taxiMarker); this.taxiMarker = null; }
-      this.taxiMarker = L.marker([p.latitude, p.longitude], { icon: taxiIcon })
-        .addTo(this.map)
-        .bindPopup(`<b>Taxi</b><br/>user_id: ${p.user_id || ''}<br/>time: ${p.timestamp || ''}`)
-        .openPopup();
-      // center map so the taxi point is visible
-      const latlng = L.latLng(p.latitude, p.longitude);
-      this.map.setView(latlng, 16);
+      const bounds: L.LatLngExpression[] = [];
+
+      points.forEach((p: any, idx: number) => {
+        const userId = typeof p.user_id === 'number' ? p.user_id : idx;
+        const lat = p.latitude ?? p.lat ?? null;
+        const lng = p.longitude ?? p.lon ?? p.lng ?? null;
+        if (typeof lat !== 'number' || typeof lng !== 'number') {
+          console.warn('Point taxi invalide (mock)', p);
+          return;
+        }
+
+        const latlng: L.LatLngExpression = [lat, lng];
+        bounds.push(latlng);
+
+        if (this.taxiMarkers.has(userId)) {
+          // update existing marker position and popup
+          const m = this.taxiMarkers.get(userId)!;
+          m.setLatLng(latlng);
+          m.setPopupContent(`<b>Taxi</b><br/>user_id: ${p.user_id || ''}<br/>time: ${p.timestamp || ''}`);
+        } else {
+          const m = L.marker(latlng, { icon: taxiIcon })
+            .addTo(this.map!)
+            .bindPopup(`<b>Taxi</b><br/>user_id: ${p.user_id || ''}<br/>time: ${p.timestamp || ''}`);
+          this.taxiMarkers.set(userId, m);
+        }
+      });
+
+      // Fit map to show all taxi markers (if any)
+      if (bounds.length > 0) {
+        const b = L.latLngBounds(bounds as any);
+        this.map.fitBounds(b, { padding: [40, 40] });
+      }
     } catch (err) {
-      console.error('Erreur en récupérant le point taxi:', err);
+      console.error('Erreur en récupérant les points taxi (mock):', err);
     }
   }
 
