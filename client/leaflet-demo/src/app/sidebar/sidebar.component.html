@@ -1,0 +1,23 @@
+<h3>Options</h3>
+
+<div class="group">
+  <label for="odSelect">Choisir une OD :</label>
+  <select id="odSelect" (change)="emitOdChange($event)">
+    <option *ngFor="let od of odPairs; let i = index" [value]="i" [selected]="i === selectedIndex">{{od.origin.name}} → {{od.destination.name}}</option>
+  </select>
+</div>
+
+<poi-filters
+  [showRestaurant]="showRestaurant"
+  [showCafe]="showCafe"
+  [showCinema]="showCinema"
+  (filtersChange)="onFiltersChange($event)"
+  (apply)="onApply()"
+  (reset)="onReset()">
+</poi-filters>
+
+<od-toggle [show]="showODLine" (showChange)="onShowChange($event)"></od-toggle>
+
+<div class="group">
+  <button (click)="requestTaxi()">Afficher un taxi</button>
+</div>

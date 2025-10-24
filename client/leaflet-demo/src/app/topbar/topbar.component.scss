@@ -1,0 +1,6 @@
+:host { display:block }
+.topbar { background:#1e293b; color:#fff; padding:8px 12px; }
+.topbar .container { display:flex; align-items:center; justify-content:space-between; }
+.topbar .brand { font-weight:600 }
+.modes button { margin-left:8px; padding:6px 10px; border-radius:4px; border:1px solid transparent; background:transparent; color:#fff; cursor:pointer }
+.modes button.active { background:#fff; color:#1e293b; border-color:#e2e8f0 }
