@@ -61,25 +61,24 @@ class TDriveImporter:
     # Taille du batch pour insertion massive
     BATCH_SIZE = 1000
     
-    def __init__(self, strict_validation: bool = False, use_beijing_bbox: bool = True):
+    def __init__(self, strict_validation: bool = False, use_beijing_bbox: bool = True, verbose: bool = False):
         """
         Initialise l'importeur.
         
         Args:
             strict_validation: Si True, applique des validations strictes
             use_beijing_bbox: Si True, vérifie que les points sont dans Beijing
-        
-        Example:
-            >>> importer = TDriveImporter(strict_validation=True)
-            >>> importer.import_file('/data/tdrive/1.txt')
+            verbose: Si True, affiche tous les messages de debug
         """
         self.strict_validation = strict_validation
         self.use_beijing_bbox = use_beijing_bbox
         self.batch_id = uuid.uuid4()
+        self.verbose = verbose
         
-        print(f"[TDriveImporter] Initialized with batch_id={self.batch_id}")
-        print(f"[TDriveImporter] Strict validation: {strict_validation}")
-        print(f"[TDriveImporter] Beijing bbox validation: {use_beijing_bbox}")
+        if self.verbose:
+            print(f"[TDriveImporter] Initialized with batch_id={self.batch_id}")
+            print(f"[TDriveImporter] Strict validation: {strict_validation}")
+            print(f"[TDriveImporter] Beijing bbox validation: {use_beijing_bbox}")
     
     def import_file(self, file_path: str) -> Dict:
         """
@@ -89,36 +88,20 @@ class TDriveImporter:
             file_path: Chemin vers le fichier .txt à importer
         
         Returns:
-            Dict contenant les statistiques d'import:
-            {
-                'success': bool,
-                'log_id': int,
-                'total_lines': int,
-                'successful': int,
-                'failed': int,
-                'duration': float
-            }
-        
-        Raises:
-            FileNotFoundError: Si le fichier n'existe pas
-            PermissionError: Si le fichier n'est pas accessible
-        
-        Example:
-            >>> result = importer.import_file('/data/tdrive/1.txt')
-            >>> print(f"Imported {result['successful']} points")
+            Dict contenant les statistiques d'import
         """
-        print(f"\n[TDriveImporter] Starting import of file: {file_path}")
+        if self.verbose:
+            print(f"\n[TDriveImporter] Starting import of file: {file_path}")
         
         # Vérification de l'existence du fichier
         if not os.path.exists(file_path):
             error_msg = f"File not found: {file_path}"
-            print(f"[ERROR] {error_msg}")
+            if self.verbose:
+                print(f"[ERROR] {error_msg}")
             raise FileNotFoundError(error_msg)
         
         file_name = os.path.basename(file_path)
         taxi_id = os.path.splitext(file_name)[0]  # Ex: "1.txt" -> "1"
-        
-        print(f"[TDriveImporter] Taxi ID: {taxi_id}")
         
         # Création du log d'import
         import_log = self._create_import_log(file_name, file_path)
@@ -142,10 +125,8 @@ class TDriveImporter:
                 TDriveImportLog.STATUS_COMPLETED
             )
             
-            print(f"[TDriveImporter] Import completed successfully")
-            print(f"[TDriveImporter] Duration: {duration:.2f}s")
-            print(f"[TDriveImporter] Success: {stats['successful']}")
-            print(f"[TDriveImporter] Failed: {stats['failed']}")
+            if self.verbose:
+                print(f"[TDriveImporter] Import completed: {stats['successful']} points in {duration:.2f}s")
             
             return {
                 'success': True,
@@ -159,7 +140,8 @@ class TDriveImporter:
         except Exception as e:
             # Gestion des erreurs globales
             error_msg = f"Import failed: {str(e)}"
-            print(f"[ERROR] {error_msg}")
+            if self.verbose:
+                print(f"[ERROR] {error_msg}")
             
             end_time = timezone.now()
             duration = (end_time - start_time).total_seconds()
@@ -186,32 +168,17 @@ class TDriveImporter:
             max_files: Nombre maximum de fichiers à importer (None = tous)
         
         Returns:
-            Dict contenant les statistiques globales:
-            {
-                'success': bool,
-                'batch_id': UUID,
-                'total_files': int,
-                'successful_files': int,
-                'failed_files': int,
-                'total_points': int,
-                'duration': float
-            }
-        
-        Example:
-            >>> result = importer.import_directory('/data/tdrive/', max_files=10)
+            Dict contenant les statistiques globales
         """
-        print(f"\n[TDriveImporter] Starting batch import from: {directory_path}")
-        print(f"[TDriveImporter] Max files: {max_files or 'unlimited'}")
-        
         start_time = timezone.now()
         
         # Récupération des fichiers .txt
-        txt_files = list(Path(directory_path).glob("*.txt"))
+        txt_files = sorted(list(Path(directory_path).glob("*.txt")))
         
         if max_files:
             txt_files = txt_files[:max_files]
         
-        print(f"[TDriveImporter] Found {len(txt_files)} files to import")
+        print(f"📦 Processing {len(txt_files)} files...")
         
         # Statistiques globales
         stats = {
@@ -222,9 +189,11 @@ class TDriveImporter:
             'failed_points': 0
         }
         
-        # Import de chaque fichier
+        # Import de chaque fichier avec affichage de progression
         for idx, file_path in enumerate(txt_files, 1):
-            print(f"\n[TDriveImporter] Processing file {idx}/{len(txt_files)}: {file_path.name}")
+            # Affichage tous les 50 fichiers
+            if idx % 50 == 0 or idx == 1 or idx == len(txt_files):
+                print(f"   Progress: {idx}/{len(txt_files)} files ({idx*100//len(txt_files)}%)")
             
             try:
                 result = self.import_file(str(file_path))
@@ -237,19 +206,15 @@ class TDriveImporter:
                     stats['failed_files'] += 1
             
             except Exception as e:
-                print(f"[ERROR] Failed to import {file_path.name}: {str(e)}")
+                if self.verbose:
+                    print(f"[ERROR] Failed to import {file_path.name}: {str(e)}")
                 stats['failed_files'] += 1
         
         # Calcul de la durée totale
         end_time = timezone.now()
         duration = (end_time - start_time).total_seconds()
         
-        print(f"\n[TDriveImporter] Batch import completed")
-        print(f"[TDriveImporter] Total duration: {duration:.2f}s")
-        print(f"[TDriveImporter] Files processed: {stats['total_files']}")
-        print(f"[TDriveImporter] Successful files: {stats['successful_files']}")
-        print(f"[TDriveImporter] Failed files: {stats['failed_files']}")
-        print(f"[TDriveImporter] Total points imported: {stats['total_points']}")
+        print(f"\n✅ Batch import completed in {duration:.2f}s")
         
         return {
             'success': stats['failed_files'] == 0,
@@ -259,16 +224,7 @@ class TDriveImporter:
         }
     
     def _create_import_log(self, file_name: str, file_path: str) -> TDriveImportLog:
-        """
-        Crée un log d'import dans la base de données.
-        
-        Args:
-            file_name: Nom du fichier
-            file_path: Chemin complet du fichier
-        
-        Returns:
-            Instance de TDriveImportLog créée
-        """
+        """Crée un log d'import dans la base de données."""
         import_log = TDriveImportLog.objects.create(
             import_batch_id=self.batch_id,
             file_name=file_name,
@@ -276,8 +232,6 @@ class TDriveImporter:
             start_time=timezone.now(),
             status=TDriveImportLog.STATUS_PROCESSING
         )
-        
-        print(f"[TDriveImporter] Created import log with ID: {import_log.id}")
         return import_log
     
     def _update_import_log(
@@ -289,17 +243,7 @@ class TDriveImporter:
         duration: float,
         status: str
     ):
-        """
-        Met à jour le log d'import avec les statistiques finales.
-        
-        Args:
-            import_log: Instance du log à mettre à jour
-            stats: Dictionnaire des statistiques
-            start_time: Heure de début
-            end_time: Heure de fin
-            duration: Durée en secondes
-            status: Statut final
-        """
+        """Met à jour le log d'import avec les statistiques finales."""
         import_log.total_lines = stats['total']
         import_log.successful_imports = stats['successful']
         import_log.failed_imports = stats['failed']
@@ -307,8 +251,6 @@ class TDriveImporter:
         import_log.duration_seconds = duration
         import_log.status = status
         import_log.save()
-        
-        print(f"[TDriveImporter] Updated import log {import_log.id}")
     
     def _process_file(
         self,
@@ -316,21 +258,9 @@ class TDriveImporter:
         taxi_id: str,
         import_log: TDriveImportLog
     ) -> Dict:
-        """
-        Traite un fichier ligne par ligne avec validation.
-        
-        Args:
-            file_path: Chemin du fichier
-            taxi_id: Identifiant du taxi
-            import_log: Log d'import associé
-        
-        Returns:
-            Dict avec statistiques: {'total': int, 'successful': int, 'failed': int}
-        """
+        """Traite un fichier ligne par ligne avec validation."""
         stats = {'total': 0, 'successful': 0, 'failed': 0}
         batch = []
-        
-        print(f"[TDriveImporter] Processing file with batch size: {self.BATCH_SIZE}")
         
         with open(file_path, 'r', encoding='utf-8') as f:
             reader = csv.reader(f)
@@ -353,7 +283,6 @@ class TDriveImporter:
                     if len(batch) >= self.BATCH_SIZE:
                         self._bulk_insert_points(batch)
                         stats['successful'] += len(batch)
-                        print(f"[TDriveImporter] Inserted batch: {stats['successful']} points")
                         batch = []
                 else:
                     stats['failed'] += 1
@@ -362,7 +291,6 @@ class TDriveImporter:
             if batch:
                 self._bulk_insert_points(batch)
                 stats['successful'] += len(batch)
-                print(f"[TDriveImporter] Inserted final batch: {stats['successful']} points total")
         
         return stats
     
@@ -377,20 +305,6 @@ class TDriveImporter:
         Valide et parse une ligne du fichier T-Drive.
         
         Format attendu: taxi_id,timestamp,longitude,latitude
-        Exemple: 1,2008-02-02 13:30:39,116.51172,39.92123
-        
-        Args:
-            row: Liste des valeurs de la ligne
-            line_num: Numéro de ligne dans le fichier
-            taxi_id: ID du taxi
-            import_log: Log d'import pour tracer les erreurs
-        
-        Returns:
-            Dict: {
-                'valid': bool,
-                'point': TDriveRawPoint | None,
-                'error': str | None
-            }
         """
         try:
             # Vérification du nombre de champs
@@ -488,7 +402,8 @@ class TDriveImporter:
         except Exception as e:
             # Capture des erreurs inattendues
             error_msg = f"Unexpected error: {str(e)}"
-            print(f"[ERROR] Line {line_num}: {error_msg}")
+            if self.verbose:
+                print(f"[ERROR] Line {line_num}: {error_msg}")
             self._log_validation_error(
                 import_log, line_num, ','.join(row) if row else '',
                 'UNKNOWN_ERROR', error_msg
@@ -496,24 +411,19 @@ class TDriveImporter:
             return {'valid': False, 'point': None, 'error': error_msg}
     
     def _bulk_insert_points(self, points: List[TDriveRawPoint]):
-        """
-        Insertion massive de points en base de données.
-        
-        Args:
-            points: Liste de points à insérer
-        
-        Note: Utilise bulk_create pour optimiser les performances
-        """
+        """Insertion massive de points en base de données."""
         try:
             TDriveRawPoint.objects.bulk_create(points, batch_size=self.BATCH_SIZE)
         except Exception as e:
-            print(f"[ERROR] Bulk insert failed: {str(e)}")
+            if self.verbose:
+                print(f"[ERROR] Bulk insert failed: {str(e)}")
             # Fallback: insertion une par une
             for point in points:
                 try:
                     point.save()
                 except Exception as point_error:
-                    print(f"[ERROR] Failed to save point: {point_error}")
+                    if self.verbose:
+                        print(f"[ERROR] Failed to save point: {point_error}")
     
     def _log_validation_error(
         self,
@@ -523,16 +433,7 @@ class TDriveImporter:
         error_type: str,
         error_message: str
     ):
-        """
-        Enregistre une erreur de validation dans la base.
-        
-        Args:
-            import_log: Log d'import parent
-            line_number: Numéro de ligne
-            raw_line: Contenu brut de la ligne
-            error_type: Type d'erreur
-            error_message: Message d'erreur
-        """
+        """Enregistre une erreur de validation dans la base."""
         try:
             TDriveValidationError.objects.create(
                 import_log=import_log,
@@ -542,4 +443,5 @@ class TDriveImporter:
                 error_message=error_message
             )
         except Exception as e:
-            print(f"[ERROR] Failed to log validation error: {str(e)}")
+            if self.verbose:
+                print(f"[ERROR] Failed to log validation error: {str(e)}")

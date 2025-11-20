@@ -30,7 +30,7 @@ app_name = 'mobility'
 
 urlpatterns = [
     # API REST
-    path('api/tdrive/', include(router.urls)),
+    path('tdrive/', include(router.urls)),
 ]
 
 """

@@ -78,7 +78,7 @@ class TDriveRawPoint(gis_models.Model):
     )
     
     class Meta:
-        db_table = 'datasets"."tdrive_raw_points'
+        db_table = 'mobility_tdriverawpoint'  # FIXED: Simple table name
         verbose_name = "Point GPS T-Drive"
         verbose_name_plural = "Points GPS T-Drive"
         ordering = ['taxi_id', 'timestamp']
@@ -184,7 +184,7 @@ class TDriveTrajectory(gis_models.Model):
     )
     
     class Meta:
-        db_table = 'datasets"."tdrive_trajectories'
+        db_table = 'mobility_tdrivetrajectory'  # FIXED
         verbose_name = "Trajectoire T-Drive"
         verbose_name_plural = "Trajectoires T-Drive"
         unique_together = [['taxi_id', 'trajectory_date']]
@@ -287,7 +287,7 @@ class TDriveImportLog(models.Model):
     )
     
     class Meta:
-        db_table = 'datasets"."tdrive_import_logs'
+        db_table = 'mobility_tdriveimportlog'  # FIXED
         verbose_name = "Log d'import T-Drive"
         verbose_name_plural = "Logs d'import T-Drive"
         ordering = ['-created_at']
@@ -344,7 +344,7 @@ class TDriveValidationError(models.Model):
     )
     
     class Meta:
-        db_table = 'datasets"."tdrive_validation_errors'
+        db_table = 'mobility_tdrivevalidationerror'  # FIXED
         verbose_name = "Erreur de validation T-Drive"
         verbose_name_plural = "Erreurs de validation T-Drive"
         ordering = ['-created_at']

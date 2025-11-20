@@ -1,0 +1,1 @@
+avoir une expliquation sur pourquoi stocker les données dans la bdd postregresl plutot que de les garder sous forme 'raw'

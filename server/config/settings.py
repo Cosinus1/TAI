@@ -69,9 +69,9 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': os.environ.get('DB_NAME', 'urban_mobility'),
-        'USER': os.environ.get('DB_USER', 'postgres'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+        'NAME': os.environ.get('DB_NAME', 'urban_mobility_db'),
+        'USER': os.environ.get('DB_USER', 'paulh'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', 'paulh'),
         'HOST': os.environ.get('DB_HOST', 'localhost'),
         'PORT': os.environ.get('DB_PORT', '5432'),
     }
@@ -121,3 +121,10 @@ CORS_ALLOWED_ORIGINS = [
 # Celery Configuration
 CELERY_BROKER_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+
+import warnings
+warnings.filterwarnings(
+    'ignore',
+    message='DateTimeField .* received a naive datetime',
+    category=RuntimeWarning
+)
