@@ -1,0 +1,15 @@
+<div class="top-bar">
+  <button
+    type="button"
+    (click)="setMode('default')"
+    [class.active]="mode() === 'default'">
+    Mode normal
+  </button>
+
+  <button
+    type="button"
+    (click)="setMode('od')"
+    [class.active]="mode() === 'od'">
+    Mode OD
+  </button>
+</div>

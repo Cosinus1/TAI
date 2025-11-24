@@ -1,0 +1,23 @@
+<div class="side-bar">
+  @if (mode() === 'od') {
+    <h3>OD</h3>
+    <div>
+      <label for="od-select">Sélectionner une OD :</label>
+      <select id="od-select" (change)="emitOdChange($event)">
+        <!-- Option spéciale pour afficher toutes les paires -->
+        <option value="">Tous les OD</option>
+      @for (pair of odPairs; track $index) {
+        <option [value]="$index">
+        {{ pair.origin.name }} → {{ pair.destination.name }}
+        </option>
+      }
+      </select>
+    </div>
+    <p>Sélectionnez une paire OD pour l'afficher sur la carte.</p>
+    <button type="button" (click)="onApply()">Appliquer</button>
+    <button type="button" (click)="onReset()">Réinitialiser</button>
+
+  } @else {
+    <p>Mode normal</p>
+  }
+</div>

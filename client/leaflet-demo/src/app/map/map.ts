@@ -15,6 +15,11 @@ import { firstValueFrom } from 'rxjs';
   styleUrls: ['./map.scss']
 })
 export class MapComponent implements AfterViewInit {
+  // --- Composant Map ---
+  // Ce composant initialise une carte Leaflet, affiche des paires OD (origine/destination),
+  // des POI filtrables (restaurant/cafe/cinema) et un mode "taxi" qui montre
+  // des points GPS groupés par `taxi_id`. Les commentaires ci-dessous expliquent
+  // les principales structures de données et le rôle des méthodes.
 
   // --- Propriétés de la carte ---
   private map: L.Map | undefined;
@@ -31,6 +36,15 @@ export class MapComponent implements AfterViewInit {
   private taxiPointsMap: Map<string, any[]> = new Map();
   taxiList: string[] = [];
   selectedTaxiId: string | null = null;
+  // time filtering & playback
+  private currentStartTime: Date | null = null;
+  private currentEndTime: Date | null = null;
+  private playing = false;
+  private playTimer: any = null;
+  private playCursor: Date | null = null;
+  // persisted filter strings (for binding to Sidebar)
+  savedStartStr: string | null = null;
+  savedEndStr: string | null = null;
 
   // --- Données OD ---
   odPairs: ODPair[] = [
@@ -52,11 +66,25 @@ export class MapComponent implements AfterViewInit {
   // store reference to last drawn polyline for removal
   private odLine: L.Polyline | null = null;
 
-  // --- Lifecycle hook ---
+  // --- Hook de cycle de vie ---
+  // ngAfterViewInit est utilisé pour initialiser la carte après que le DOM
+  // (élément #map) soit disponible. On restaure aussi ici les filtres temporels
+  // éventuellement sauvegardés dans localStorage.
   ngAfterViewInit(): void {
     setTimeout(() => {
       this.initMap();
       this.updateMap();
+      // restore persisted time range from localStorage (if any)
+      try {
+        const s = localStorage.getItem('taxi_time_filter_start');
+        const e = localStorage.getItem('taxi_time_filter_end');
+        if (s) this.savedStartStr = s;
+        if (e) this.savedEndStr = e;
+        // if values exist, apply them (this will parse and call applyTimeFilter)
+        if (s || e) this.onTimeRangeChange({ start: s ?? null, end: e ?? null });
+      } catch (err) {
+        // ignore localStorage errors
+      }
     });
   }
 
@@ -305,6 +333,122 @@ export class MapComponent implements AfterViewInit {
     }
   }
 
+  // Time controls from sidebar
+  onTimeRangeChange(range: { start: string | null; end: string | null }) {
+    // parse datetime-local reliably: if the string has a timezone (Z or +/-) use Date, else construct local Date
+    const parseLocalInput = (s: string | null): Date | null => {
+      if (!s) return null;
+      // if contains timezone info (Z or +/-HH:mm) let Date parse it
+      if (/([zZ]|[+\-]\d{2}:?\d{2})$/.test(s)) return new Date(s);
+      // expected format: YYYY-MM-DDTHH:mm[:ss]
+      const m = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/);
+      if (!m) return new Date(s);
+      const year = Number(m[1]);
+      const month = Number(m[2]) - 1;
+      const day = Number(m[3]);
+      const hour = Number(m[4]);
+      const minute = Number(m[5]);
+      const second = m[6] ? Number(m[6]) : 0;
+      // Important: interpret datetime-local input as UTC to match backend timestamps that use Z (UTC).
+      return new Date(Date.UTC(year, month, day, hour, minute, second));
+    };
+
+    this.currentStartTime = parseLocalInput(range.start);
+    this.currentEndTime = parseLocalInput(range.end);
+    // Auto-clamp: if user selected an end date far after start (more than 24h),
+    // assume they meant the same day and clamp end to start's date keeping the end's time.
+    if (this.currentStartTime && this.currentEndTime) {
+      const msDiff = Math.abs(this.currentEndTime.getTime() - this.currentStartTime.getTime());
+      const oneDay = 24 * 3600 * 1000;
+      if (msDiff > oneDay) {
+        // build a new Date using start's YMD and end's HH:MM:SS
+        const e = this.currentEndTime;
+        const s = this.currentStartTime;
+        const clamped = new Date(s.getFullYear(), s.getMonth(), s.getDate(), e.getHours(), e.getMinutes(), e.getSeconds());
+        // only replace if clamped is within reasonable range around start (e.g., within 2 days)
+        if (Math.abs(clamped.getTime() - s.getTime()) <= 7 * oneDay) {
+          this.currentEndTime = clamped;
+          console.debug('Auto-clamped end time to same day as start:', this.currentEndTime.toISOString());
+        }
+      }
+    }
+    // stop playback if running
+    if (this.playing) this.stopPlayback();
+
+    // ensure marker timestamp cache exists (ms) for fast comparisons
+    this.taxiPointMarkers.forEach(markers => markers.forEach(m => {
+      const meta = (m as any);
+      if (meta._ts_ms == null) {
+        if (meta._ts) {
+          const parsed = Date.parse(meta._ts);
+          meta._ts_ms = Number.isNaN(parsed) ? null : parsed;
+        } else {
+          meta._ts_ms = null;
+        }
+      }
+    }));
+
+    this.applyTimeFilter();
+  }
+
+  onPlayToggle(start: boolean) {
+    this.playing = start;
+    if (this.playing) this.startPlayback(); else this.stopPlayback();
+  }
+
+  private applyTimeFilter() {
+    if (!this.map) return;
+    // if no range set show as usual (respect selectedTaxiId filtering)
+    this.taxiPointMarkers.forEach((markers, tid) => {
+      markers.forEach(m => {
+        const tsMs = (m as any)._ts_ms ?? null;
+        let visible = true;
+        if (this.currentStartTime && (tsMs == null || tsMs < this.currentStartTime.getTime())) visible = false;
+        if (this.currentEndTime && (tsMs == null || tsMs > this.currentEndTime.getTime())) visible = false;
+        // also respect selected taxi: if selectedTaxiId is set, hide others
+        if (this.selectedTaxiId && tid !== this.selectedTaxiId) visible = false;
+        if (visible) {
+          if (!this.map!.hasLayer(m)) this.map!.addLayer(m);
+        } else {
+          if (this.map!.hasLayer(m)) this.map!.removeLayer(m);
+        }
+      });
+    });
+  }
+
+  private startPlayback() {
+    if (!this.currentStartTime || !this.currentEndTime || !this.map) return;
+    // initialize cursor at start
+    this.playCursor = new Date(this.currentStartTime);
+    // ensure selectedTaxiId doesn't hide points (we keep selection behavior: if a taxi is selected play only that taxi)
+    const stepMs = 1000; // advance 1 second of real time per tick (feel free to adjust)
+    this.playTimer = setInterval(() => {
+      if (!this.playCursor) return;
+      // show points with timestamp <= playCursor
+      this.taxiPointMarkers.forEach((markers, tid) => {
+        markers.forEach(m => {
+          const tsMs = (m as any)._ts_ms ?? null;
+          const shouldShow = tsMs !== null && tsMs <= this.playCursor!.getTime()
+            && (!this.selectedTaxiId || tid === this.selectedTaxiId)
+            && (!this.currentStartTime || tsMs >= this.currentStartTime!.getTime());
+          if (shouldShow) { if (!this.map!.hasLayer(m)) this.map!.addLayer(m); }
+          else { if (this.map!.hasLayer(m)) this.map!.removeLayer(m); }
+        });
+      });
+      // advance cursor
+      this.playCursor = new Date(this.playCursor.getTime() + stepMs);
+      if (this.playCursor.getTime() > this.currentEndTime!.getTime()) {
+        this.stopPlayback();
+      }
+    }, 200); // ticks every 200ms to feel smooth (advancing 1s per tick)
+  }
+
+  private stopPlayback() {
+    if (this.playTimer) { clearInterval(this.playTimer); this.playTimer = null; }
+    this.playing = false;
+    this.playCursor = null;
+  }
+
   // --- Récupérer un point de taxi (mock) depuis le front et l'afficher ---
   async fetchTaxiPoints(): Promise<void> {
     if (!this.map) return;
@@ -362,6 +506,8 @@ export class MapComponent implements AfterViewInit {
 
           // create marker (small red dot)
           const m = L.marker(latlng, { icon: redDotIcon }).bindPopup(`<b>Taxi point</b><br/>taxi_id: ${tid}<br/>time: ${norm.timestamp || ''}`);
+          // attach timestamp metadata for filtering/playback
+          (m as any)._ts = norm.timestamp ?? null;
           // decide whether to add to map now depending on selection
           if (this.selectedTaxiId === null || this.selectedTaxiId === tid) {
             m.addTo(this.map!);
@@ -383,6 +529,8 @@ export class MapComponent implements AfterViewInit {
   }
 
   // --- Requête Overpass API pour récupérer les POI ---
+  // Construis une requête Overpass pour obtenir les nœuds `amenity` près d'un point
+  // et transforme la réponse en un tableau { name, type, lat, lng } utilisé par addPOIsAround
   private async fetchPOIs(lat: number, lng: number, radius: number = 500): Promise<any[]> {
     const query = `
       [out:json];
@@ -409,6 +557,7 @@ export class MapComponent implements AfterViewInit {
   }
 
   // --- Fonctions utilitaires ---
+  // Calcul de la distance (approx. haversine) entre deux coordonnées
   private getDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
     const R = 6371;
     const dLat = this.deg2rad(lat2 - lat1);

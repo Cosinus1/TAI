@@ -9,13 +9,17 @@
       [showODLine]="showODLine()"
       [taxiList]="taxiList"
       [selectedTaxiId]="selectedTaxiId"
+      [startTime]="savedStartStr"
+      [endTime]="savedEndStr"
         (odChange)="onODChange($event)"
         (filtersChange)="onFiltersChange($event)"
         (apply)="applyOptions()"
         (reset)="resetOptions()"
   (showChange)="onODToggle($event)"
   (taxiRequest)="fetchTaxiPoints()"
-  (taxiSelect)="onTaxiSelect($event)">
+  (taxiSelect)="onTaxiSelect($event)"
+  (timeRangeChange)="onTimeRangeChange($event)"
+  (playToggle)="onPlayToggle($event)">
     </app-sidebar>
   </aside>
 

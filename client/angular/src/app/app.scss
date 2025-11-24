@@ -1,0 +1,12 @@
+.app-shell {
+  display: flex;
+  flex-direction: row;
+  height: calc(100vh - var(--topbar-height, 56px));
+}
+
+.map-container {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  order: 1;
+}

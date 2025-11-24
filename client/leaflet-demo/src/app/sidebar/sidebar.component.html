@@ -15,6 +15,19 @@
   </select>
 </div>
 
+<div class="group time-controls">
+  <label>Filtrer par horaire (local)</label>
+  <div class="time-row">
+    <input type="datetime-local" [(ngModel)]="startTimeStr" (change)="emitTimeRange()" />
+    <span class="sep">→</span>
+    <input type="datetime-local" [(ngModel)]="endTimeStr" (change)="emitTimeRange()" />
+  </div>
+  <div class="time-actions">
+    <button type="button" (click)="emitTimeRange()">Appliquer</button>
+    <button type="button" (click)="togglePlay()">{{ playing ? 'Pause' : 'Play' }}</button>
+  </div>
+</div>
+
 <poi-filters
   [showRestaurant]="showRestaurant"
   [showCafe]="showCafe"

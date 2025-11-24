@@ -1,0 +1,11 @@
+.sidebar {
+    /* sidebar fixe (affichée à gauche via l'ordre Flex dans .app-shell) */
+    width: 260px;
+    height: 100%; /* remplir la hauteur du conteneur */
+    background: #f8f9fb;
+    /* bordure côté droit (sépare la sidebar de la map) */
+    border-right: 1px solid #e3e6ea;
+    padding: 12px;
+    box-sizing: border-box;
+    overflow-y: auto;
+}
