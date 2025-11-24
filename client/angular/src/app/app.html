@@ -1,0 +1,14 @@
+<app-topbar></app-topbar>
+
+<div class="app-shell">
+  <!-- container map : prend tout l'espace restant -->
+  <main class="map-container">
+    <app-map [odPairs]="odPairs" [selectedIndex]="selectedIndex"></app-map>
+  </main>
+
+  <aside id="sidebar">
+    <app-sidebar [odPairs]="odPairs" (odChange)="setSelectedIndex($event)"></app-sidebar>
+  </aside>
+</div>
+
+<router-outlet/>

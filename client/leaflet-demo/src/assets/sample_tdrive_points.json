@@ -1,0 +1,93 @@
+[
+  {
+    "id": 1001,
+    "taxi_id": "taxi_1",
+    "timestamp": "2024-01-15T08:00:00Z",
+    "longitude": 2.3522,
+    "latitude": 48.8566,
+    "imported_at": "2024-01-15T09:00:00Z",
+    "source_file": "TAXI_1.txt",
+    "is_valid": true
+  },
+  {
+    "id": 1004,
+    "taxi_id": "taxi_1",
+    "timestamp": "2024-01-15T08:05:00Z",
+    "longitude": 2.3530,
+    "latitude": 48.8569,
+    "imported_at": "2024-01-15T09:01:00Z",
+    "source_file": "TAXI_1.txt",
+    "is_valid": true
+  },
+  {
+    "id": 1005,
+    "taxi_id": "taxi_1",
+    "timestamp": "2024-01-15T08:10:00Z",
+    "longitude": 2.3540,
+    "latitude": 48.8572,
+    "imported_at": "2024-01-15T09:02:00Z",
+    "source_file": "TAXI_1.txt",
+    "is_valid": true
+  },
+  {
+    "id": 1002,
+    "taxi_id": "taxi_2",
+    "timestamp": "2024-01-15T09:30:00Z",
+    "longitude": 2.2945,
+    "latitude": 48.8584,
+    "imported_at": "2024-01-15T09:10:00Z",
+    "source_file": "TAXI_2.txt",
+    "is_valid": true
+  },
+  {
+    "id": 1006,
+    "taxi_id": "taxi_2",
+    "timestamp": "2024-01-15T09:35:00Z",
+    "longitude": 2.2952,
+    "latitude": 48.8581,
+    "imported_at": "2024-01-15T09:11:00Z",
+    "source_file": "TAXI_2.txt",
+    "is_valid": true
+  },
+  {
+    "id": 1007,
+    "taxi_id": "taxi_2",
+    "timestamp": "2024-01-15T09:40:00Z",
+    "longitude": 2.2960,
+    "latitude": 48.8578,
+    "imported_at": "2024-01-15T09:12:00Z",
+    "source_file": "TAXI_2.txt",
+    "is_valid": true
+  },
+  {
+    "id": 1008,
+    "taxi_id": "taxi_2",
+    "timestamp": "2024-01-15T09:45:00Z",
+    "longitude": 2.2968,
+    "latitude": 48.8575,
+    "imported_at": "2024-01-15T09:13:00Z",
+    "source_file": "TAXI_2.txt",
+    "is_valid": true
+  },
+  {
+    "id": 1003,
+    "taxi_id": "taxi_3",
+    "timestamp": "2024-01-15T07:50:00Z",
+    "longitude": 2.3530,
+    "latitude": 48.8570,
+    "imported_at": "2024-01-15T09:05:00Z",
+    "source_file": "TAXI_3.txt",
+    "is_valid": true
+  }
+  ,
+  {
+    "id": 1009,
+    "taxi_id": "taxi_3",
+    "timestamp": "2024-01-15T08:20:00Z",
+    "longitude": 2.3545,
+    "latitude": 48.8565,
+    "imported_at": "2024-01-15T09:06:00Z",
+    "source_file": "TAXI_3.txt",
+    "is_valid": true
+  }
+]

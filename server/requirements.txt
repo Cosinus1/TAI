@@ -17,6 +17,13 @@ shapely>=2.0.0
 geopandas>=0.13.0
 geojson>=3.1.0
 djangorestframework-gis>=1.0.0
+GDAL>=3.6.0
+
+# NOTE: GDAL/GEOS/PROJ are system libraries and must be installed on the OS
+# before installing the Python bindings (GDAL, pyproj, shapely, geopandas).
+# On Debian/Ubuntu for example:
+#   sudo apt update && sudo apt install -y gdal-bin libgdal-dev libgeos-dev libproj-dev
+# Then set GDAL_LIBRARY_PATH in your environment or Django settings if needed.
 
 # --- Data Science / Analysis ---
 numpy>=1.24.0
