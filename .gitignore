@@ -1,4 +1,1 @@
 .gitignore
-server/data/
-spec/claude/
-.venv/
