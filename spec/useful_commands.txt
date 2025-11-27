@@ -1,0 +1,2 @@
+# Activate virtual environnement
+conda activate tai-env
