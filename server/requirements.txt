@@ -19,11 +19,21 @@ geojson>=3.1.0
 djangorestframework-gis>=1.0.0
 GDAL>=3.6.0
 
-# NOTE: GDAL/GEOS/PROJ are system libraries and must be installed on the OS
-# before installing the Python bindings (GDAL, pyproj, shapely, geopandas).
-# On Debian/Ubuntu for example:
-#   sudo apt update && sudo apt install -y gdal-bin libgdal-dev libgeos-dev libproj-dev
-# Then set GDAL_LIBRARY_PATH in your environment or Django settings if needed.
+# --- Mobility Analysis Core ---
+scikit-mobility>=1.3.0
+movingpandas>=0.16.0
+trackintel>=1.0.0
+
+# --- Trajectory & Movement Analysis ---
+scikit-move>=1.0.0
+traja>=0.3.0
+pymove>=2.0.0
+
+# --- Spatial Networks & Routing ---
+osmnx>=1.7.0
+networkx>=3.0
+osmpythontools>=0.3.0
+folium>=0.14.0
 
 # --- Data Science / Analysis ---
 numpy>=1.24.0
@@ -31,8 +41,37 @@ pandas>=2.0.0
 scikit-learn>=1.3.0
 matplotlib>=3.7.0
 seaborn>=0.12.0
-folium>=0.14.0
+
+# --- Statistics & Machine Learning ---
+statsmodels>=0.14.0
+scipy>=1.10.0
+xgboost>=1.7.0
+lightgbm>=3.3.0
+
+# --- Time Series Analysis ---
+pytz>=2023.0
+python-dateutil>=2.8.0
+
+# --- Data Processing & Utilities ---
+tqdm>=4.65.0
+pyarrow>=12.0.0  # For efficient data handling
+h3>=3.7.0  # Uber's H3 geospatial indexing
+
+# --- Visualization ---
+plotly>=5.15.0
+bokeh>=3.2.0
+contextily>=1.3.0  # For basemaps in matplotlib
 
 # --- Jupyter / Development ---
 jupyter>=1.0.0
 notebook>=7.0.0
+ipywidgets>=8.0.0
+
+# NOTE: GDAL/GEOS/PROJ are system libraries and must be installed on the OS
+# before installing the Python bindings (GDAL, pyproj, shapely, geopandas).
+# On Debian/Ubuntu for example:
+#   sudo apt update && sudo apt install -y gdal-bin libgdal-dev libgeos-dev libproj-dev
+# Then set GDAL_LIBRARY_PATH in your environment or Django settings if needed.
+
+# For Windows users, it's recommended to use conda:
+#   conda install -c conda-forge gdal geopandas shapely pyproj
