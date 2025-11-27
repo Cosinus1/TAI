@@ -3,6 +3,7 @@ Django settings for urban_mobility_analysis project.
 """
 
 import os
+import sys
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -128,3 +129,38 @@ warnings.filterwarnings(
     message='DateTimeField .* received a naive datetime',
     category=RuntimeWarning
 )
+
+import os
+import sys
+
+# GDAL configuration for Windows - Auto-detection
+if os.name == 'nt':
+    # Try common conda and virtual environment paths
+    possible_paths = [
+        # Current conda environment
+        os.path.join(sys.prefix, 'Library', 'bin'),
+        # Default conda location
+        os.path.join(os.path.expanduser('~'), 'anaconda3', 'Library', 'bin'),
+        os.path.join(os.path.expanduser('~'), 'miniconda3', 'Library', 'bin'),
+        # Common virtual environment locations
+        os.path.join(sys.prefix, 'bin'),
+        # System PATH
+    ]
+    
+    # Try to find GDAL DLL
+    gdal_found = False
+    for path in possible_paths:
+        gdal_dll_path = os.path.join(path, 'gdal.dll')
+        geos_dll_path = os.path.join(path, 'geos_c.dll')
+        
+        if os.path.exists(gdal_dll_path):
+            GDAL_LIBRARY_PATH = gdal_dll_path
+            gdal_found = True
+            print(f"Found GDAL at: {gdal_dll_path}")
+        
+        if os.path.exists(geos_dll_path):
+            GEOS_LIBRARY_PATH = geos_dll_path
+            print(f"Found GEOS at: {geos_dll_path}")
+    
+    if not gdal_found:
+        print("Warning: GDAL library not found. GIS functionality will be disabled.")
