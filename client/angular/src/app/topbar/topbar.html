@@ -12,4 +12,11 @@
     [class.active]="mode() === 'od'">
     Mode OD
   </button>
+
+  <button
+    type="button"
+    (click)="setMode('gps')"
+    [class.active]="mode() === 'gps'">
+    Mode GPS
+  </button>
 </div>

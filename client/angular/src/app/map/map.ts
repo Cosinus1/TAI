@@ -2,6 +2,8 @@ import { Component, Input, AfterViewInit, OnChanges, SimpleChanges, ViewChild, E
 import * as L from 'leaflet';
 import { ODPair } from '../interfaces/od';
 import { Mode } from '../services/mode';
+import { Gps } from '../services/gps';
+import { GpsFeature, Bbox } from '../interfaces/gps';
 
 @Component({
   selector: 'app-map',
@@ -24,7 +26,24 @@ export class Map implements AfterViewInit, OnChanges, OnDestroy{
   private map?: L.Map;
   private odLayer?: L.LayerGroup;
   // injection du service Mode pour savoir si on est en mode 'od' ou 'default'
+  private pointsLayer?: L.LayerGroup;
   private mode = inject(Mode);
+  private gps = inject(Gps);
+  private moveListenerAttached = false;
+
+
+  private onMoveEnd = () => {
+    if (!this.map) return;
+    const b = this.map.getBounds();
+    const bbox: Bbox = {
+      minLon: b.getWest(),
+      maxLon: b.getEast(),
+      minLat: b.getSouth(),
+      maxLat: b.getNorth(),
+    };
+    // limiter le nombre de points par requête pour éviter surcharge
+    this.loadPointsInBbox(bbox, 1000);
+  };
 
   constructor() {
     // Effet réactif : quand le mode change, on affiche ou masque les OD.
@@ -36,6 +55,30 @@ export class Map implements AfterViewInit, OnChanges, OnDestroy{
         this.updateOdLayers();
       } else {
         this.odLayer.clearLayers();
+      }
+
+      if (m === 'gps') {
+        // si pas attaché, attach listener et charge initial
+        if (!this.moveListenerAttached) {
+          this.map.on('moveend', this.onMoveEnd);
+          this.moveListenerAttached = true;
+        }
+        // premier chargement (par bbox current viewport)
+        const b = this.map.getBounds();
+        const bbox: Bbox = {
+          minLon: b.getWest(),
+          maxLon: b.getEast(),
+          minLat: b.getSouth(),
+          maxLat: b.getNorth(),
+        };
+        this.loadPointsInBbox(bbox, 1000);
+      } else {
+        // retirer listener et vider la couche points si on quitte le mode gps
+        if (this.moveListenerAttached) {
+          this.map.off('moveend', this.onMoveEnd);
+          this.moveListenerAttached = false;
+        }
+        this.pointsLayer?.clearLayers();
       }
     });
   }
@@ -53,6 +96,7 @@ export class Map implements AfterViewInit, OnChanges, OnDestroy{
     }).addTo(this.map);
 
     this.odLayer = L.layerGroup().addTo(this.map);
+    this.pointsLayer = L.layerGroup().addTo(this.map);
 
     setTimeout(() => {
       try {
@@ -70,13 +114,98 @@ export class Map implements AfterViewInit, OnChanges, OnDestroy{
       this.odLayer.clearLayers();
     }
   }
-  
 
+    loadPoints(limit = 1000): void {
+    this.gps.getPoints(limit).subscribe({
+      next: (resp) => {
+        const features = resp.features || [];
+        this.renderPoints(features);
+        console.log('[Gps] loaded points:', features.length);
+      },
+      error: (err) => {
+        console.error('[Gps] getPoints error', err);
+      }
+    });
+        // premier chargement générique
+    this.loadPoints(1000);    
+  }
+
+  loadPointsInBbox(bbox: Bbox, limit = 1000): void {
+    this.gps.getPointsInBbox(bbox, limit).subscribe({
+      next: (resp) => {
+        const features = resp.features || [];
+        this.renderPoints(features);
+        console.log('[Gps] loaded bbox points:', features.length);
+      },
+      error: (err) => {
+        console.error('[Gps] getPointsInBbox error', err);
+      },
+    });
+  }
+
+  private renderPoints(features: GpsFeature[]): void {
+    if (!this.map || !this.pointsLayer) return;
+
+    // Clear previous markers
+    this.pointsLayer.clearLayers();
+
+    const createdMarkers: L.CircleMarker[] = [];
+
+    for (const f of features) {
+      // support GeoJSON geometry.coordinates OR fallback to properties.lng/lat
+      const coords = f.geometry?.coordinates;
+      let lng: number | undefined;
+      let lat: number | undefined;
+
+      if (Array.isArray(coords) && coords.length >= 2) {
+        [lng, lat] = coords;
+      } else {
+        lng = (f as any).properties?.longitude ?? (f as any).properties?.lng;
+        lat = (f as any).properties?.latitude ?? (f as any).properties?.lat;
+      }
+
+      if (lng == null || lat == null) continue;
+
+      const marker = L.circleMarker([lat, lng], {
+        radius: 5,
+        fillColor: f.properties?.is_valid ? '#3388ff' : '#ff6b6b',
+        color: '#fff',
+        weight: 1,
+        opacity: 0.9,
+        fillOpacity: 0.8,
+      });
+
+      const taxi = f.properties?.taxi_id ?? '—';
+      const ts = f.properties?.timestamp ? new Date(f.properties.timestamp).toLocaleString() : '';
+      marker.bindPopup(`<strong>Taxi ${taxi}</strong><br/>${lat.toFixed(5)}, ${lng.toFixed(5)}<br/><small>${ts}</small>`);
+
+      marker.addTo(this.pointsLayer);
+      createdMarkers.push(marker);
+    }
+
+    // Fit bounds if markers exist
+    if (createdMarkers.length > 0) {
+      const bounds = L.latLngBounds(createdMarkers.map(m => m.getLatLng()));
+      try {
+        this.map.fitBounds(bounds, { padding: [50, 50] });
+      } catch {
+        // ignore
+      }
+    }
+  }
+  
   ngOnDestroy(): void {
-    // Bonne pratique : cleanup pour éviter les fuites mémoire
-    this.map?.remove();
+    // cleanup
+    if (this.map && this.moveListenerAttached) {
+      this.map.off('moveend', this.onMoveEnd);
+      this.moveListenerAttached = false;
+    }
+    if (this.map) {
+      this.map.remove();
+    }
     this.map = undefined;
     this.odLayer = undefined;
+    this.pointsLayer?.clearLayers();
   }
 
   private updateOdLayers(): void {

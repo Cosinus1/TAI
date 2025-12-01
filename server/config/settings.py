@@ -65,17 +65,17 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-# Database
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': os.environ.get('DB_NAME', 'urban_mobility_db'),
-        'USER': os.environ.get('DB_USER', 'paulh'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', 'paulh'),
-        'HOST': os.environ.get('DB_HOST', 'localhost'),
-        'PORT': os.environ.get('DB_PORT', '5432'),
-    }
-}
+# # Database
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.contrib.gis.db.backends.postgis',
+#         'NAME': os.environ.get('DB_NAME', 'urban_mobility_db'),
+#         'USER': os.environ.get('DB_USER', 'paulh'),
+#         'PASSWORD': os.environ.get('DB_PASSWORD', 'paulh'),
+#         'HOST': os.environ.get('DB_HOST', 'localhost'),
+#         'PORT': os.environ.get('DB_PORT', '5432'),
+#     }
+# }
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -116,6 +116,8 @@ REST_FRAMEWORK = {
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://localhost:4200",
+    "http://127.0.0.1:4200",
 ]
 
 # Celery Configuration

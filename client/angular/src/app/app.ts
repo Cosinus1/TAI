@@ -31,9 +31,7 @@ export class App {
   selectedIndex: number | null = null;
 
   // Handler appelé par le Sidebar quand l'utilisateur choisit une OD
-  setSelectedIndex(index: number) {
+  setSelectedIndex(index: number | null) {
     this.selectedIndex = index;
   }
-
-
 }
