@@ -14,7 +14,7 @@ export class Topbar {
   // on réutilise directement le signal du service
   mode = this.Mode.mode;
 
-  setMode(mode: 'default' | 'od') {
+  setMode(mode: 'default' | 'od' | 'gps') {
     this.Mode.setMode(mode);
   }
 }
