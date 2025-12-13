@@ -82,7 +82,7 @@ export class Map implements AfterViewInit, OnChanges, OnDestroy{
       }
     });
   }
-
+  
   // --- Initialisation de la carte ---
   ngAfterViewInit(): void {
     this.map = L.map(this.mapContainer.nativeElement, {

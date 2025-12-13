@@ -16,6 +16,6 @@ import { CommonModule } from '@angular/common';
 export class OdToggleComponent {
   @Input() show = true;
   @Output() showChange = new EventEmitter<boolean>();
-
+  
   onToggle(checked: boolean) { this.show = checked; this.showChange.emit(checked); }
 }
