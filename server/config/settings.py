@@ -71,8 +71,8 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
         'NAME': os.environ.get('DB_NAME', 'urban_mobility_db'),
-        'USER': os.environ.get('DB_USER', 'paulh'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', 'paulh'),
+        'USER': os.environ.get('DB_USER', 'postgres'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', 'tai2025'),
         'HOST': os.environ.get('DB_HOST', 'localhost'),
         'PORT': os.environ.get('DB_PORT', '5432'),
     }
