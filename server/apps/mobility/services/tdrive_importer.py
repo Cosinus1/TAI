@@ -18,6 +18,10 @@ from typing import List, Dict, Tuple, Optional
 from pathlib import Path
 from decimal import Decimal, InvalidOperation
 
+import pandas as pd
+import numpy as np
+from tqdm import tqdm
+
 from django.db import transaction, connection
 from django.utils import timezone
 from django.contrib.gis.geos import Point
@@ -80,12 +84,13 @@ class TDriveImporter:
             print(f"[TDriveImporter] Strict validation: {strict_validation}")
             print(f"[TDriveImporter] Beijing bbox validation: {use_beijing_bbox}")
     
-    def import_file(self, file_path: str) -> Dict:
+    def import_file(self, file_path: str, use_pandas: bool = True) -> Dict:
         """
         Importe un fichier T-Drive unique dans la base de données.
         
         Args:
             file_path: Chemin vers le fichier .txt à importer
+            use_pandas: Si True, utilise pandas pour un traitement plus rapide
         
         Returns:
             Dict contenant les statistiques d'import
@@ -110,7 +115,10 @@ class TDriveImporter:
         try:
             # Import des données
             with transaction.atomic():
-                stats = self._process_file(file_path, taxi_id, import_log)
+                if use_pandas:
+                    stats = self._process_file_pandas(file_path, taxi_id, import_log)
+                else:
+                    stats = self._process_file(file_path, taxi_id, import_log)
             
             # Mise à jour du log
             end_time = timezone.now()
@@ -134,7 +142,8 @@ class TDriveImporter:
                 'total_lines': stats['total'],
                 'successful': stats['successful'],
                 'failed': stats['failed'],
-                'duration': duration
+                'duration': duration,
+                'method': 'pandas' if use_pandas else 'csv'
             }
         
         except Exception as e:
@@ -409,6 +418,126 @@ class TDriveImporter:
                 'UNKNOWN_ERROR', error_msg
             )
             return {'valid': False, 'point': None, 'error': error_msg}
+    
+    def _process_file_pandas(
+        self,
+        file_path: str,
+        taxi_id: str,
+        import_log: TDriveImportLog
+    ) -> Dict:
+        """
+        Process file using pandas for better performance.
+        
+        Args:
+            file_path: Path to the file
+            taxi_id: Taxi identifier
+            import_log: Import log object
+        
+        Returns:
+            Processing statistics
+        """
+        stats = {'total': 0, 'successful': 0, 'failed': 0}
+        
+        try:
+            # Read file with pandas
+            df = pd.read_csv(
+                file_path,
+                header=None,
+                names=['taxi_id_file', 'timestamp', 'longitude', 'latitude'],
+                dtype={
+                    'taxi_id_file': str,
+                    'timestamp': str,
+                    'longitude': float,
+                    'latitude': float
+                },
+                na_values=['', 'null', 'NULL', 'None'],
+                keep_default_na=False
+            )
+            
+            stats['total'] = len(df)
+            
+            # Parse timestamps
+            df['timestamp'] = pd.to_datetime(df['timestamp'], format='%Y-%m-%d %H:%M:%S', errors='coerce')
+            
+            # Apply validation
+            df['is_valid'] = True
+            df['validation_notes'] = ''
+            
+            # Coordinate validation
+            coord_mask = (
+                (df['longitude'] >= self.MIN_LONGITUDE) & 
+                (df['longitude'] <= self.MAX_LONGITUDE) &
+                (df['latitude'] >= self.MIN_LATITUDE) & 
+                (df['latitude'] <= self.MAX_LATITUDE)
+            )
+            
+            # Beijing bbox validation
+            if self.use_beijing_bbox:
+                beijing_mask = (
+                    (df['longitude'] >= self.BEIJING_BBOX['min_lon']) & 
+                    (df['longitude'] <= self.BEIJING_BBOX['max_lon']) &
+                    (df['latitude'] >= self.BEIJING_BBOX['min_lat']) & 
+                    (df['latitude'] <= self.BEIJING_BBOX['max_lat'])
+                )
+                coord_mask = coord_mask & beijing_mask
+            
+            # Timestamp validation
+            time_mask = df['timestamp'].notna()
+            
+            # Combined validation
+            valid_mask = coord_mask & time_mask
+            
+            if self.strict_validation:
+                # In strict mode, only keep valid points
+                df_valid = df[valid_mask].copy()
+                df_invalid = df[~valid_mask].copy()
+            else:
+                # In permissive mode, keep all points but mark invalid ones
+                df_valid = df.copy()
+                df_valid.loc[~valid_mask, 'is_valid'] = False
+                df_valid.loc[~valid_mask, 'validation_notes'] = 'Failed coordinate or timestamp validation'
+                df_invalid = pd.DataFrame()
+            
+            # Create TDriveRawPoint objects
+            points = []
+            for _, row in df_valid.iterrows():
+                point = TDriveRawPoint(
+                    taxi_id=taxi_id,
+                    timestamp=row['timestamp'],
+                    longitude=row['longitude'],
+                    latitude=row['latitude'],
+                    source_file=import_log.file_name,
+                    is_valid=row['is_valid'],
+                    validation_notes=row['validation_notes']
+                )
+                points.append(point)
+            
+            # Bulk insert in batches
+            for i in range(0, len(points), self.BATCH_SIZE):
+                batch = points[i:i + self.BATCH_SIZE]
+                self._bulk_insert_points(batch)
+            
+            stats['successful'] = len(points)
+            stats['failed'] = len(df_invalid)
+            
+            # Log validation errors for invalid points
+            if not df_invalid.empty:
+                for idx, row in df_invalid.iterrows():
+                    self._log_validation_error(
+                        import_log,
+                        idx + 1,  # line number
+                        f"{row['taxi_id_file']},{row['timestamp']},{row['longitude']},{row['latitude']}",
+                        'VALIDATION_ERROR',
+                        'Failed coordinate or timestamp validation'
+                    )
+            
+            return stats
+        
+        except Exception as e:
+            if self.verbose:
+                print(f"[ERROR] Pandas processing failed: {str(e)}")
+            # Fallback to CSV processing
+            return self._process_file(file_path, taxi_id, import_log)
     
     def _bulk_insert_points(self, points: List[TDriveRawPoint]):
         """Insertion massive de points en base de données."""

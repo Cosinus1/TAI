@@ -9,30 +9,52 @@ celery>=5.3.0
 redis>=4.5.0
 
 # --- Database ---
-psycopg2-binary>=2.9.0  # PostgreSQL driver (works with PostGIS)
+psycopg2-binary>=2.9.0
 
-# --- GeoDjango / Geospatial ---
+# --- Geospatial (Install GDAL separately first!) ---
 pyproj>=3.6.1
-shapely>=2.0.0
-geopandas>=0.13.0
-geojson>=3.1.0
+shapely>=1.7
+geopandas>=0.10.2
+geojson>=2.5.0
 djangorestframework-gis>=1.0.0
-GDAL>=3.6.0
+# GDAL - install separately via conda or wheel
 
-# NOTE: GDAL/GEOS/PROJ are system libraries and must be installed on the OS
-# before installing the Python bindings (GDAL, pyproj, shapely, geopandas).
-# On Debian/Ubuntu for example:
-#   sudo apt update && sudo apt install -y gdal-bin libgdal-dev libgeos-dev libproj-dev
-# Then set GDAL_LIBRARY_PATH in your environment or Django settings if needed.
+# --- Mobility Analysis Core ---
+scikit-mobility>=1.3.0
+movingpandas>=0.16.0
+trackintel>=1.0.0
 
-# --- Data Science / Analysis ---
+# --- Trajectory Analysis (verify these exist) ---
+# scikit-move - DOES NOT EXIST, remove
+# traja>=0.3.0 - verify this exists
+# pymove>=2.0.0 - verify this exists
+
+# --- Spatial Networks ---
+osmnx>=1.7.0
+networkx>=3.0
+folium>=0.12.1.post1
+
+# --- Data Science ---
 numpy>=1.24.0
-pandas>=2.0.0
+pandas>=1.1.5
 scikit-learn>=1.3.0
 matplotlib>=3.7.0
 seaborn>=0.12.0
-folium>=0.14.0
 
-# --- Jupyter / Development ---
-jupyter>=1.0.0
-notebook>=7.0.0
+# --- ML Libraries ---
+statsmodels>=0.13.0
+scipy>=1.10.0
+xgboost>=1.7.0
+lightgbm>=3.3.0
+
+# --- Utilities ---
+pytz>=2023.0
+python-dateutil>=2.8.0
+tqdm>=4.65.0
+pyarrow>=12.0.0
+h3>=3.7.0
+
+# --- Visualization ---
+plotly>=5.15.0
+bokeh>=3.2.0
+contextily>=1.3.0
