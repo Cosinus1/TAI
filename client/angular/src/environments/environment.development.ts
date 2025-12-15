@@ -1,1 +1,3 @@
-export const environment = {};
+export const environment = {
+    backendPrefix: "http://127.0.0.1:8000"
+};

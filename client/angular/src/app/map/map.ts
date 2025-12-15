@@ -4,15 +4,16 @@ import { ODPair } from '../interfaces/od';
 import { Mode } from '../services/mode';
 import { Gps } from '../services/gps';
 import { GpsFeature, Bbox } from '../interfaces/gps';
+import { OdLayer } from "../od-layer/od-layer";
 
 @Component({
   selector: 'app-map',
-  imports: [],
+  imports: [OdLayer],
   templateUrl: './map.html',
   styleUrl: './map.scss',
 })
 
-export class Map implements AfterViewInit, OnChanges, OnDestroy{
+export class Map implements AfterViewInit, OnDestroy{
   // Liste des paires OD fournie par le parent
   @Input() odPairs: ODPair[] = [];
   // Optionnel : un parent peut transmettre un index sélectionné pour n'afficher
@@ -20,11 +21,12 @@ export class Map implements AfterViewInit, OnChanges, OnDestroy{
   @Input() selectedIndex: number | null = null;
   
   
-  @ViewChild('map', { static: true }) private mapContainer!: ElementRef<HTMLDivElement>;
+  @ViewChild('mapContainer', { static: true }) 
+  private mapContainer!: ElementRef<HTMLDivElement>;
 
 
-  private map?: L.Map;
-  private odLayer?: L.LayerGroup;
+  map?: L.Map;
+  // private odLayer?: L.LayerGroup;
   // injection du service Mode pour savoir si on est en mode 'od' ou 'default'
   private pointsLayer?: L.LayerGroup;
   private mode = inject(Mode);
@@ -50,12 +52,12 @@ export class Map implements AfterViewInit, OnChanges, OnDestroy{
     // L'effet vérifie que la carte est initialisée avant d'agir.
     effect(() => {
       const m = this.mode.mode();
-      if (!this.map || !this.odLayer) return;
-      if (m === 'od') {
-        this.updateOdLayers();
-      } else {
-        this.odLayer.clearLayers();
-      }
+      if (!this.map) return;
+      // if (m === 'od') {
+      //   // this.updateOdLayers();
+      // } else {
+      //   this.odLayer.clearLayers();
+      // }
 
       if (m === 'gps') {
         // si pas attaché, attach listener et charge initial
@@ -95,7 +97,7 @@ export class Map implements AfterViewInit, OnChanges, OnDestroy{
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(this.map);
 
-    this.odLayer = L.layerGroup().addTo(this.map);
+    // this.odLayer = L.layerGroup().addTo(this.map);
     this.pointsLayer = L.layerGroup().addTo(this.map);
 
     setTimeout(() => {
@@ -108,10 +110,10 @@ export class Map implements AfterViewInit, OnChanges, OnDestroy{
 
     // Premier dessin : n'affiche les OD que si le mode est 'od'.
     if (this.mode.mode() === 'od') {
-      this.updateOdLayers();
+      // this.updateOdLayers();
     } else {
       // s'assurer que la couche est vide en mode 'default'
-      this.odLayer.clearLayers();
+      // this.odLayer.clearLayers();
     }
   }
 
@@ -204,41 +206,41 @@ export class Map implements AfterViewInit, OnChanges, OnDestroy{
       this.map.remove();
     }
     this.map = undefined;
-    this.odLayer = undefined;
+    // this.odLayer = undefined;
     this.pointsLayer?.clearLayers();
   }
 
-  private updateOdLayers(): void {
-    // Dessine les origines/destinations sur la couche `odLayer`.
-    if (!this.map || !this.odLayer) return;
-    this.odLayer.clearLayers();
-    if (!this.odPairs || this.odPairs.length === 0) return;
+  // private updateOdLayers(): void {
+  //   // Dessine les origines/destinations sur la couche `odLayer`.
+  //   if (!this.map || !this.odLayer) return;
+  //   this.odLayer.clearLayers();
+  //   if (!this.odPairs || this.odPairs.length === 0) return;
 
-    const pairsToDraw =
-      this.selectedIndex != null && this.selectedIndex >= 0 && this.selectedIndex < this.odPairs.length
-        ? [this.odPairs[this.selectedIndex]]
-        : this.odPairs;
+  //   const pairsToDraw =
+  //     this.selectedIndex != null && this.selectedIndex >= 0 && this.selectedIndex < this.odPairs.length
+  //       ? [this.odPairs[this.selectedIndex]]
+  //       : this.odPairs;
 
-    for (const pair of pairsToDraw) {
-      const origin: L.LatLngExpression = [pair.origin.lat, pair.origin.lng];
-      const dest: L.LatLngExpression = [pair.destination.lat, pair.destination.lng];
+  //   for (const pair of pairsToDraw) {
+  //     const origin: L.LatLngExpression = [pair.origin.lat, pair.origin.lng];
+  //     const dest: L.LatLngExpression = [pair.destination.lat, pair.destination.lng];
 
-      L.polyline([origin, dest], { color: 'blue', weight: 3 }).addTo(this.odLayer);
-      L.marker(origin).addTo(this.odLayer);
-      L.marker(dest).addTo(this.odLayer);
-    }
-  }
+  //     L.polyline([origin, dest], { color: 'blue', weight: 3 }).addTo(this.odLayer);
+  //     L.marker(origin).addTo(this.odLayer);
+  //     L.marker(dest).addTo(this.odLayer);
+  //   }
+  // }
 
-  // Réagir aux changes d'inputs (odPairs, selectedIndex)
-  ngOnChanges(changes: SimpleChanges): void {
-    if (this.map && (changes['odPairs'] || changes['selectedIndex'])) {
-      if (this.mode.mode() === 'od') {
-        this.updateOdLayers();
-      } else {
-        this.odLayer?.clearLayers();
-      }
-    }
-  }
+  // // Réagir aux changes d'inputs (odPairs, selectedIndex)
+  // ngOnChanges(changes: SimpleChanges): void {
+  //   if (this.map && (changes['odPairs'] || changes['selectedIndex'])) {
+  //     if (this.mode.mode() === 'od') {
+  //       this.updateOdLayers();
+  //     } else {
+  //       this.odLayer?.clearLayers();
+  //     }
+  //   }
+  // }
   
 }
 

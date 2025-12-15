@@ -1,1 +1,9 @@
-<div #map id="map" class="map-container"></div>
+<div #mapContainer id="map" class="map-container"></div>
+
+@if (map) {
+  <app-od-layer
+    [map]="map"
+    [odPairs]="odPairs"
+    [selectedIndex]="selectedIndex"
+  />
+}
