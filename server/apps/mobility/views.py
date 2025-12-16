@@ -113,7 +113,13 @@ class TDriveRawPointViewSet(viewsets.ReadOnlyModelViewSet):
             (data['min_lon'], data['min_lat'])
         ), srid=4326)
 
-        queryset = self.get_queryset().filter(geom__within=bbox)
+        # queryset = self.get_queryset().filter(geom__within=bbox)
+        queryset = self.get_queryset().filter(
+            longitude__gte=data['min_lon'],
+            longitude__lte=data['max_lon'],
+            latitude__gte=data['min_lat'],
+            latitude__lte=data['max_lat'],
+        )   
         if data.get('taxi_id'):
             queryset = queryset.filter(taxi_id=data['taxi_id'])
 
