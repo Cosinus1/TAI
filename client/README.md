@@ -12,6 +12,7 @@ Angular frontend for urban mobility analysis system.
 ## Setup
 
 This frontend will be implemented using Angular framework.
+
 Faire un `npm ci` pour avoir `node_modules`
 
 ## Project Structure
