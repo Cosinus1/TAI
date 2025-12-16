@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import{ Observable } from 'rxjs';
-import {GpsPoint, PaginatedResponse, Bbox, GeoJsonFeatureCollection} from '../interfaces/gps';
+import {GpsPoint, PaginatedResponse, Bbox, GeoJsonFeatureCollection, Taxi, GeoJsonFeature, TaxiFeatureCollectionResponse} from '../interfaces/gps';
 import { environment } from '../../environments/environment';
 
 @Injectable({
@@ -43,12 +43,13 @@ export class Gps {
     );
   }
 
-  getPointsByTaxi(
-    taxiId: string,
-    limit = 1000
-  ): Observable<PaginatedResponse<GeoJsonFeatureCollection>> {
-    return this.http.get<PaginatedResponse<GeoJsonFeatureCollection>>(
-      `${this.apiUrl}/points/by_taxi/?taxi_id=${taxiId}&limit=${limit}`
-    );
+getPointsByTaxi(taxiId: string,limit = 1000): Observable<TaxiFeatureCollectionResponse> {
+  return this.http.get<TaxiFeatureCollectionResponse>(
+    `${this.apiUrl}/points/by_taxi/?taxi_id=${taxiId}&limit=${limit}`
+  );
+}
+
+  getTaxis(): Observable<Taxi[]> {
+    return this.http.get<Taxi[]>(`${this.apiUrl}/taxis/`);
   }
 }

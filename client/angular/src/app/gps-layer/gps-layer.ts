@@ -12,6 +12,7 @@ import { Bbox, GeoJsonFeature } from '../interfaces/gps';
 })
 export class GpsLayer implements OnDestroy {
   @Input({ required: true }) map!: L.Map;
+  @Input() selectedTaxi: string | null = null;
 
   private gps = inject(Gps);
   private mode = inject(Mode);
@@ -50,6 +51,19 @@ export class GpsLayer implements OnDestroy {
   }
 
   private loadPointsInViewport(limit = 1000) {
+    if (this.selectedTaxi) {
+      console.log('[GpsLayer] load points for taxi', this.selectedTaxi);
+      this.gps.getPointsByTaxi(this.selectedTaxi, limit).subscribe({
+        next: resp => {
+          const features = resp.results?.features ?? [];
+          console.log('[GpsLayer] features for taxi', features.length);
+          this.render(features);
+        },
+        error: err => console.error('[GpsLayer]', err),
+      });
+      return;
+    }
+
     const b = this.map.getBounds();
     const bbox: Bbox = {
       minLon: b.getWest(),

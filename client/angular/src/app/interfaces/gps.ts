@@ -14,6 +14,14 @@ export interface PaginatedResponse<T> {
   results: T[];
 }
 
+export interface TaxiFeatureCollectionResponse {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: GeoJsonFeatureCollection;
+}
+
+
 export interface GeoJsonFeature {
   id: number;
   type: 'Feature';
@@ -42,3 +50,15 @@ export interface Bbox {
   minLat: number;
   maxLat: number;
 }
+
+export interface Taxi {
+  taxi_id: string;
+  total_points: number;
+  first_record: string;
+  last_record: string;
+  active_days: number;
+  avg_points_per_day: number;
+}
+
+
+

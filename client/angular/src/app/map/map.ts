@@ -17,7 +17,7 @@ export class Map implements AfterViewInit{
   // Optionnel : un parent peut transmettre un index sélectionné pour n'afficher
   // qu'une seule paire. Si null ou undefined, on affiche toutes les paires.
   @Input() selectedIndex: number | null = null;
-  
+  @Input() selectedTaxi: string | null = null;
   
   @ViewChild('mapContainer', { static: true }) 
   private mapContainer!: ElementRef<HTMLDivElement>;
