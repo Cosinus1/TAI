@@ -1,9 +1,13 @@
 <div #mapContainer id="map" class="map-container"></div>
 
-@if (map) {
+@if (map(); as m) {
   <app-od-layer
-    [map]="map"
+    [map]="m"
     [odPairs]="odPairs"
     [selectedIndex]="selectedIndex"
   />
+
+  <app-gps-layer [map]="m" />
 }
+
+

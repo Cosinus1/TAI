@@ -1,26 +1,39 @@
-export interface GpsProperties {
-  taxi_id?: string;
-  timestamp?: string;
-  is_valid?: boolean;
-  [key: string]: any;
+export interface GpsPoint {
+  id: number;
+  taxi_id: string;
+  timestamp: string;
+  longitude: number;
+  latitude: number;
+  is_valid: boolean;
 }
 
-export interface GpsGeometry {
-  type: 'Point';
-  coordinates: [number, number]; // [lng, lat]
+export interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
 }
 
-export interface GpsFeature {
+export interface GeoJsonFeature {
+  id: number;
   type: 'Feature';
-  id?: number | string;
-  geometry: GpsGeometry;
-  properties: GpsProperties;
+  geometry: {
+    type: 'Point';
+    coordinates: [number, number];
+  } | null;
+  properties: {
+    taxi_id: string;
+    timestamp: string;
+    longitude: number;
+    latitude: number;
+    is_valid: boolean;
+  };
 }
 
-export interface FeatureCollection<T = GpsFeature> {
+
+export interface GeoJsonFeatureCollection {
   type: 'FeatureCollection';
-  features: T[];
-  [key: string]: any;
+  features: GeoJsonFeature[];
 }
 
 export interface Bbox {
