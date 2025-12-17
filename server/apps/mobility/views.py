@@ -123,7 +123,7 @@ class TDriveRawPointViewSet(viewsets.ReadOnlyModelViewSet):
         if data.get('taxi_id'):
             queryset = queryset.filter(taxi_id=data['taxi_id'])
 
-        limit = data.get('limit', 1000)
+        limit = data.get('limit', 1000) #TODO modify limit in front
         queryset = queryset[:limit]
 
         serializer = TDriveRawPointSerializer(queryset, many=True)
