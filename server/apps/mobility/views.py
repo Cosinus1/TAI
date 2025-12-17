@@ -33,6 +33,8 @@ from apps.mobility.serializers import (
 from apps.mobility.services.tdrive_importer import TDriveImporter
 from apps.mobility.services.trajectory_analyzer import TrajectoryAnalyzer
 
+from skmob.preprocessing import clustering
+
 
 
 # ============================================================================
@@ -312,4 +314,34 @@ class TDriveTaxiViewSet(viewsets.ViewSet):
         serializer = TaxiStatisticsSerializer(instance=stats)
         return Response(serializer.data)
 
-    
+    @action(detail=False, methods=['post'])
+    def cluster_mobility_profiles(self, request):
+        """Cluster taxis by mobility behavior patterns."""
+        taxi_ids = request.data.get('taxi_ids', [])
+        
+        # Collect mobility metrics for each taxi
+        profiles = []
+        for taxi_id in taxi_ids:
+            analyzer = TrajectoryAnalyzer()
+            # Get trajectory data
+            tdf = self._create_trajdataframe(taxi_id)
+            
+            # Calculate mobility metrics
+            metrics = {
+                'radius_of_gyration': radius_of_gyration(tdf),
+                'number_of_locations': number_of_locations(tdf),
+                'entropy': tdf.trajectory.entropy()
+            }
+            profiles.append(metrics)
+        
+        # Apply clustering (k-means, DBSCAN, etc.)
+        clusters = self._cluster_profiles(profiles)
+        
+        return Response({
+            'clusters': clusters,
+            'interpretations': {
+                'high_mobility': 'Wide coverage, many locations',
+                'local_service': 'Limited area, repeated routes',
+                'hub_focused': 'Concentrated around key points'
+            }
+        })
