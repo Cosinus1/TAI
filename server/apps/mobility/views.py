@@ -31,6 +31,8 @@ from apps.mobility.serializers import (
     TaxiStatisticsSerializer
 )
 from apps.mobility.services.tdrive_importer import TDriveImporter
+from apps.mobility.services.trajectory_analyzer import TrajectoryAnalyzer
+
 
 
 # ============================================================================
@@ -190,6 +192,28 @@ class TDriveTrajectoryViewSet(viewsets.ReadOnlyModelViewSet):
         queryset = self.get_queryset().filter(taxi_id=taxi_id)
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
+    
+    @action(detail=True, methods=['get'])
+    def analyze_stops(self, request, pk=None):
+        """Detect stops and activity patterns in a trajectory."""
+        trajectory = self.get_object()
+        
+        analyzer = TrajectoryAnalyzer(
+            stop_detection_threshold=300,  # 5 minutes
+            min_points_per_trajectory=10
+        )
+        
+        analysis = analyzer.analyze_taxi_trajectories(
+            taxi_id=trajectory.taxi_id,
+            date=trajectory.trajectory_date
+        )
+        
+        return Response({
+            'trajectory_id': pk,
+            'mobility_metrics': analysis['metrics'],
+            'detected_stops': analysis['stops'],
+            'od_pairs': analysis['od_pairs']
+        })
 
 
 # ============================================================================
@@ -287,3 +311,5 @@ class TDriveTaxiViewSet(viewsets.ViewSet):
 
         serializer = TaxiStatisticsSerializer(instance=stats)
         return Response(serializer.data)
+
+    
