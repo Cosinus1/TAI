@@ -13,6 +13,7 @@ from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import Count, Min, Max, Q
 from django.contrib.gis.geos import Polygon
+import logging
 
 from apps.mobility.models import (
     TDriveRawPoint,
@@ -33,9 +34,13 @@ from apps.mobility.serializers import (
 from apps.mobility.services.tdrive_importer import TDriveImporter
 from apps.mobility.services.trajectory_analyzer import TrajectoryAnalyzer
 
-import skmob 
-from skmob.preprocessing import clustering
-
+try:
+    import skmob
+    from skmob.preprocessing import clustering
+    SKMOB_AVAILABLE = True
+except ImportError:
+    SKMOB_AVAILABLE = False
+    logging.warning("scikit-mobility not available")
 
 
 # ============================================================================
@@ -218,65 +223,6 @@ class TDriveTrajectoryViewSet(viewsets.ReadOnlyModelViewSet):
             'od_pairs': analysis['od_pairs']
         })
 
-
-# ============================================================================
-# TDriveImportLog ViewSet
-# ============================================================================
-
-class TDriveImportLogViewSet(viewsets.ReadOnlyModelViewSet):
-    """ViewSet pour les logs d'import T-Drive."""
-    queryset = TDriveImportLog.objects.all()
-    serializer_class = TDriveImportLogSerializer
-    pagination_class = StandardResultsSetPagination
-
-    def get_serializer_class(self):
-        if self.action == 'list':
-            return TDriveImportLogListSerializer
-        return TDriveImportLogSerializer
-
-    @action(detail=False, methods=['post'])
-    def start(self, request):
-        """Lancer un nouvel import."""
-        serializer = ImportRequestSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-
-        importer = TDriveImporter(
-            strict_validation=data.get('strict_validation', False),
-            use_beijing_bbox=data.get('use_beijing_bbox', True)
-        )
-
-        try:
-            if data.get('file_path'):
-                result = importer.import_file(data['file_path'])
-            elif data.get('directory_path'):
-                result = importer.import_directory(
-                    data['directory_path'],
-                    max_files=data.get('max_files')
-                )
-            else:
-                return Response({'error': 'file_path or directory_path is required'},
-                                status=status.HTTP_400_BAD_REQUEST)
-
-            return Response(result, status=status.HTTP_200_OK)
-
-        except FileNotFoundError as e:
-            return Response({'error': f'File not found: {str(e)}'}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            return Response({'error': f'Import failed: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    @action(detail=False, methods=['get'], url_path='batch/(?P<batch_id>[^/.]+)')
-    def batch(self, request, batch_id=None):
-        """Récupère tous les imports d’un batch."""
-        queryset = self.get_queryset().filter(import_batch_id=batch_id)
-        serializer = self.get_serializer(queryset, many=True)
-        return Response({
-            'batch_id': batch_id,
-            'import_count': len(serializer.data),
-            'imports': serializer.data
-        })
-
-
 # ============================================================================
 # TDriveTaxi ViewSet
 # ============================================================================
@@ -318,6 +264,9 @@ class TDriveTaxiViewSet(viewsets.ViewSet):
     @action(detail=False, methods=['post'])
     def cluster_mobility_profiles(self, request):
         """Cluster taxis by mobility behavior patterns."""
+        if not SKMOB_AVAILABLE:
+            return Response({'error': 'scikit-mobility library is not available'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        
         taxi_ids = request.data.get('taxi_ids', [])
         
         # Collect mobility metrics for each taxi
