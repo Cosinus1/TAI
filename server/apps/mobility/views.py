@@ -33,6 +33,7 @@ from apps.mobility.serializers import (
 from apps.mobility.services.tdrive_importer import TDriveImporter
 from apps.mobility.services.trajectory_analyzer import TrajectoryAnalyzer
 
+import skmob 
 from skmob.preprocessing import clustering
 
 
