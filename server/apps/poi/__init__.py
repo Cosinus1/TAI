@@ -1,1 +1,0 @@
-# Points of Interest app
