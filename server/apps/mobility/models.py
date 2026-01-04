@@ -1,353 +1,594 @@
 """
 ============================================================================
-Django Models pour le dataset T-Drive
+Django Models for Generic Mobility Data Management
 ============================================================================
-Description: Modèles Django pour interagir avec les données T-Drive stockées
-            en PostgreSQL/PostGIS. Chaque modèle correspond à une table.
+Description: Flexible models for handling various mobility datasets
+            (GPS traces, OD pairs, trajectories)
+Author: Refactored for scalability
 ============================================================================
 """
 
 from django.contrib.gis.db import models as gis_models
 from django.db import models
 from django.utils import timezone
+from django.core.validators import MinValueValidator, MaxValueValidator
 import uuid
 
 
-class TDriveRawPoint(gis_models.Model):
+# ============================================================================
+# Core Mobility Models
+# ============================================================================
+
+class Dataset(models.Model):
     """
-    Modèle pour les points GPS bruts issus des fichiers T-Drive.
-    
-    Attributs:
-        taxi_id: Identifiant du taxi (nom du fichier source)
-        timestamp: Date et heure du relevé GPS
-        longitude/latitude: Coordonnées géographiques
-        geom: Géométrie PostGIS (auto-générée via trigger)
-        is_valid: Flag de validation du point
-    
-    Note: La géométrie est automatiquement créée par un trigger PostgreSQL
+    Master table for managing different mobility datasets.
+    Allows system to handle multiple data sources.
     """
     
-    # Identifiants et temporalité
-    taxi_id = models.CharField(
+    DATASET_TYPE_CHOICES = [
+        ('gps_trace', 'GPS Trace Data'),
+        ('od_matrix', 'Origin-Destination Matrix'),
+        ('trajectory', 'Aggregated Trajectories'),
+        ('stop_event', 'Stop Events'),
+        ('custom', 'Custom Dataset'),
+    ]
+    
+    DATA_FORMAT_CHOICES = [
+        ('csv', 'CSV File'),
+        ('txt', 'Text File'),
+        ('json', 'JSON File'),
+        ('geojson', 'GeoJSON File'),
+        ('shapefile', 'Shapefile'),
+        ('api', 'API Endpoint'),
+    ]
+    
+    # Identity
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False
+    )
+    name = models.CharField(
+        max_length=255,
+        unique=True,
+        help_text="Unique dataset name"
+    )
+    description = models.TextField(
+        blank=True,
+        help_text="Dataset description and context"
+    )
+    
+    # Dataset configuration
+    dataset_type = models.CharField(
         max_length=50,
+        choices=DATASET_TYPE_CHOICES,
+        help_text="Type of mobility data"
+    )
+    data_format = models.CharField(
+        max_length=50,
+        choices=DATA_FORMAT_CHOICES,
+        help_text="Source data format"
+    )
+    
+    # Field mapping configuration (JSON)
+    field_mapping = models.JSONField(
+        default=dict,
+        help_text="Maps source fields to standard schema"
+    )
+    
+    # Metadata
+    source_url = models.URLField(
+        blank=True,
+        null=True,
+        help_text="Original data source URL"
+    )
+    geographic_scope = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Geographic coverage (e.g., 'Beijing, China')"
+    )
+    temporal_range_start = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="Start of temporal coverage"
+    )
+    temporal_range_end = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="End of temporal coverage"
+    )
+    
+    # System fields
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Dataset is available for queries"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'mobility_dataset'
+        verbose_name = "Mobility Dataset"
+        verbose_name_plural = "Mobility Datasets"
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.name} ({self.dataset_type})"
+
+
+class GPSPoint(gis_models.Model):
+    """
+    Generic GPS point model for all trace datasets.
+    Replaces dataset-specific point models.
+    """
+    
+    # Dataset reference
+    dataset = models.ForeignKey(
+        Dataset,
+        on_delete=models.CASCADE,
+        related_name='gps_points',
         db_index=True,
-        help_text="Identifiant du taxi (correspond au nom du fichier)"
+        help_text="Parent dataset"
+    )
+    
+    # Core identification
+    entity_id = models.CharField(
+        max_length=100,
+        db_index=True,
+        help_text="Entity identifier (vehicle, person, device)"
     )
     timestamp = models.DateTimeField(
         db_index=True,
-        help_text="Timestamp du relevé GPS"
+        help_text="Recording timestamp"
     )
     
-    # Coordonnées géographiques
+    # Spatial data
     longitude = models.FloatField(
-        help_text="Longitude (WGS84, -180 à 180)"
+        validators=[MinValueValidator(-180), MaxValueValidator(180)],
+        help_text="Longitude (WGS84)"
     )
     latitude = models.FloatField(
-        help_text="Latitude (WGS84, -90 à 90)"
+        validators=[MinValueValidator(-90), MaxValueValidator(90)],
+        help_text="Latitude (WGS84)"
     )
-    
-    # Géométrie PostGIS
     geom = gis_models.PointField(
         srid=4326,
+        spatial_index=True,
         null=True,
         blank=True,
-        help_text="Géométrie PostGIS du point (auto-générée)"
+        help_text="PostGIS geometry (auto-generated)"
     )
     
-    # Métadonnées d'import
-    imported_at = models.DateTimeField(
-        default=timezone.now,
-        help_text="Date d'import dans la base"
-    )
-    source_file = models.CharField(
-        max_length=255,
+    # Optional attributes
+    altitude = models.FloatField(
         null=True,
         blank=True,
-        help_text="Nom du fichier source"
+        help_text="Altitude in meters"
+    )
+    accuracy = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="GPS accuracy in meters"
+    )
+    speed = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Instantaneous speed (km/h)"
+    )
+    heading = models.FloatField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(360)],
+        help_text="Direction of travel (degrees)"
     )
     
-    # Validation
+    # Extended attributes (JSON for flexibility)
+    extra_attributes = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Additional dataset-specific attributes"
+    )
+    
+    # Quality control
     is_valid = models.BooleanField(
         default=True,
-        help_text="Indique si le point a passé la validation"
+        db_index=True,
+        help_text="Point passed validation"
     )
-    validation_notes = models.TextField(
-        null=True,
+    validation_flags = models.JSONField(
+        default=dict,
         blank=True,
-        help_text="Notes de validation (erreurs, avertissements)"
+        help_text="Validation issues (if any)"
+    )
+    
+    # System fields
+    imported_at = models.DateTimeField(
+        default=timezone.now,
+        help_text="Import timestamp"
     )
     
     class Meta:
-        db_table = 'mobility_tdriverawpoint'  # FIXED: Simple table name
-        verbose_name = "Point GPS T-Drive"
-        verbose_name_plural = "Points GPS T-Drive"
-        ordering = ['taxi_id', 'timestamp']
+        db_table = 'mobility_gpspoint'
+        verbose_name = "GPS Point"
+        verbose_name_plural = "GPS Points"
+        ordering = ['dataset', 'entity_id', 'timestamp']
         indexes = [
-            models.Index(fields=['taxi_id', 'timestamp'], name='idx_taxi_time'),
+            models.Index(fields=['dataset', 'entity_id', 'timestamp'], name='idx_gps_dataset_entity_time'),
+            models.Index(fields=['dataset', 'timestamp'], name='idx_gps_dataset_time'),
+            models.Index(fields=['entity_id', 'timestamp'], name='idx_gps_entity_time'),
         ]
+        # Prevent duplicate points
+        unique_together = [['dataset', 'entity_id', 'timestamp']]
     
     def __str__(self):
-        return f"{self.taxi_id} @ {self.timestamp}"
+        return f"{self.entity_id} @ {self.timestamp}"
     
     def save(self, *args, **kwargs):
-        """
-        Override de save pour validation supplémentaire.
-        La géométrie est gérée par le trigger PostgreSQL.
-        """
-        # Validation des coordonnées
-        if not (-180 <= self.longitude <= 180):
-            self.is_valid = False
-            self.validation_notes = "Longitude invalide"
-        if not (-90 <= self.latitude <= 90):
-            self.is_valid = False
-            self.validation_notes = "Latitude invalide"
-        
+        """Auto-generate geometry from coordinates if not provided."""
+        if not self.geom and self.longitude and self.latitude:
+            from django.contrib.gis.geos import Point
+            self.geom = Point(self.longitude, self.latitude, srid=4326)
         super().save(*args, **kwargs)
 
 
-class TDriveTrajectory(gis_models.Model):
+class Trajectory(gis_models.Model):
     """
-    Modèle pour les trajectoires agrégées par taxi et par jour.
-    
-    Attributs:
-        taxi_id: Identifiant du taxi
-        trajectory_date: Date de la trajectoire
-        start_time/end_time: Début et fin de la trajectoire
-        point_count: Nombre de points GPS dans la trajectoire
-        total_distance_meters: Distance totale parcourue
-        geom: Géométrie LineString de la trajectoire complète
-    
-    Note: Utilisé pour les analyses et visualisations performantes
+    Aggregated trajectory for a single entity over a time period.
+    Can represent daily trips, complete journeys, etc.
     """
     
-    # Identifiants
-    taxi_id = models.CharField(
-        max_length=50,
+    # Dataset reference
+    dataset = models.ForeignKey(
+        Dataset,
+        on_delete=models.CASCADE,
+        related_name='trajectories',
+        db_index=True
+    )
+    
+    # Identity
+    entity_id = models.CharField(
+        max_length=100,
         db_index=True,
-        help_text="Identifiant du taxi"
+        help_text="Entity identifier"
     )
     trajectory_date = models.DateField(
         db_index=True,
-        help_text="Date de la trajectoire"
+        help_text="Date of trajectory"
     )
     
-    # Temporalité
-    start_time = models.DateTimeField(
-        help_text="Début de la trajectoire"
-    )
-    end_time = models.DateTimeField(
-        help_text="Fin de la trajectoire"
-    )
-    
-    # Statistiques
-    point_count = models.IntegerField(
-        help_text="Nombre de points GPS"
-    )
-    total_distance_meters = models.FloatField(
-        null=True,
-        blank=True,
-        help_text="Distance totale en mètres"
-    )
+    # Temporal bounds
+    start_time = models.DateTimeField(help_text="Trajectory start")
+    end_time = models.DateTimeField(help_text="Trajectory end")
     duration_seconds = models.IntegerField(
         null=True,
         blank=True,
-        help_text="Durée en secondes"
+        help_text="Total duration"
+    )
+    
+    # Statistics
+    point_count = models.IntegerField(help_text="Number of GPS points")
+    total_distance_meters = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Total distance traveled"
     )
     avg_speed_kmh = models.FloatField(
         null=True,
         blank=True,
-        help_text="Vitesse moyenne en km/h"
+        help_text="Average speed"
+    )
+    max_speed_kmh = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Maximum speed"
     )
     
-    # Géométries
+    # Geometry
     geom = gis_models.LineStringField(
         srid=4326,
+        spatial_index=True,
         null=True,
         blank=True,
-        help_text="Géométrie LineString de la trajectoire"
+        help_text="Full trajectory line"
     )
-    bbox_geom = gis_models.PolygonField(
+    bbox = gis_models.PolygonField(
         srid=4326,
         null=True,
         blank=True,
-        help_text="Bounding box de la trajectoire"
+        help_text="Bounding box"
     )
     
-    # Métadonnées
-    created_at = models.DateTimeField(
-        default=timezone.now,
-        help_text="Date de création"
+    # Extended metrics (JSON for flexibility)
+    metrics = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Additional computed metrics"
     )
-    updated_at = models.DateTimeField(
-        auto_now=True,
-        help_text="Date de dernière mise à jour"
-    )
+    
+    # System fields
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
-        db_table = 'mobility_tdrivetrajectory'  # FIXED
-        verbose_name = "Trajectoire T-Drive"
-        verbose_name_plural = "Trajectoires T-Drive"
-        unique_together = [['taxi_id', 'trajectory_date']]
-        ordering = ['taxi_id', 'trajectory_date']
+        db_table = 'mobility_trajectory'
+        verbose_name = "Trajectory"
+        verbose_name_plural = "Trajectories"
+        ordering = ['dataset', 'entity_id', 'trajectory_date']
+        unique_together = [['dataset', 'entity_id', 'trajectory_date']]
+        indexes = [
+            models.Index(fields=['dataset', 'entity_id'], name='idx_traj_dataset_entity'),
+            models.Index(fields=['dataset', 'trajectory_date'], name='idx_traj_dataset_date'),
+        ]
     
     def __str__(self):
-        return f"{self.taxi_id} - {self.trajectory_date}"
+        return f"{self.entity_id} - {self.trajectory_date}"
 
 
-class TDriveImportLog(models.Model):
+# ============================================================================
+# Import Management Models
+# ============================================================================
+
+class ImportJob(models.Model):
     """
-    Modèle pour les logs d'import des fichiers T-Drive.
-    
-    Attributs:
-        import_batch_id: UUID unique pour regrouper les imports
-        file_name: Nom du fichier importé
-        status: État de l'import (pending, processing, completed, failed)
-        successful_imports: Nombre de lignes importées avec succès
-        failed_imports: Nombre de lignes échouées
-    
-    Note: Permet le monitoring et le debug des imports
+    Tracks data import operations for any dataset type.
     """
     
-    # Statuts possibles
     STATUS_PENDING = 'pending'
     STATUS_PROCESSING = 'processing'
     STATUS_COMPLETED = 'completed'
     STATUS_FAILED = 'failed'
+    STATUS_CANCELLED = 'cancelled'
     
     STATUS_CHOICES = [
-        (STATUS_PENDING, 'En attente'),
-        (STATUS_PROCESSING, 'En cours'),
-        (STATUS_COMPLETED, 'Terminé'),
-        (STATUS_FAILED, 'Échoué'),
+        (STATUS_PENDING, 'Pending'),
+        (STATUS_PROCESSING, 'Processing'),
+        (STATUS_COMPLETED, 'Completed'),
+        (STATUS_FAILED, 'Failed'),
+        (STATUS_CANCELLED, 'Cancelled'),
     ]
     
-    # Identifiants
-    import_batch_id = models.UUIDField(
+    # Identity
+    id = models.UUIDField(
+        primary_key=True,
         default=uuid.uuid4,
-        db_index=True,
-        help_text="UUID du batch d'import"
+        editable=False
     )
-    file_name = models.CharField(
-        max_length=255,
-        help_text="Nom du fichier importé"
-    )
-    file_path = models.TextField(
-        null=True,
-        blank=True,
-        help_text="Chemin complet du fichier"
+    dataset = models.ForeignKey(
+        Dataset,
+        on_delete=models.CASCADE,
+        related_name='import_jobs',
+        help_text="Target dataset"
     )
     
-    # Statistiques
-    total_lines = models.IntegerField(
-        null=True,
-        blank=True,
-        help_text="Nombre total de lignes dans le fichier"
+    # Source information
+    source_type = models.CharField(
+        max_length=50,
+        choices=[
+            ('file', 'File Upload'),
+            ('directory', 'Directory Scan'),
+            ('url', 'URL Download'),
+            ('api', 'API Import'),
+        ],
+        help_text="Import source type"
     )
-    successful_imports = models.IntegerField(
-        default=0,
-        help_text="Nombre de lignes importées avec succès"
-    )
-    failed_imports = models.IntegerField(
-        default=0,
-        help_text="Nombre de lignes échouées"
-    )
-    
-    # Timing
-    start_time = models.DateTimeField(
-        help_text="Début de l'import"
-    )
-    end_time = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="Fin de l'import"
-    )
-    duration_seconds = models.FloatField(
-        null=True,
-        blank=True,
-        help_text="Durée de l'import en secondes"
+    source_path = models.TextField(
+        help_text="Path, URL, or identifier of source"
     )
     
-    # Status et erreurs
+    # Import configuration
+    import_config = models.JSONField(
+        default=dict,
+        help_text="Import-specific settings"
+    )
+    
+    # Progress tracking
     status = models.CharField(
         max_length=50,
         choices=STATUS_CHOICES,
         default=STATUS_PENDING,
-        help_text="Statut de l'import"
+        db_index=True
     )
-    error_message = models.TextField(
+    total_records = models.IntegerField(
         null=True,
         blank=True,
-        help_text="Message d'erreur si échec"
+        help_text="Total records to process"
+    )
+    processed_records = models.IntegerField(
+        default=0,
+        help_text="Records processed so far"
+    )
+    successful_records = models.IntegerField(
+        default=0,
+        help_text="Successfully imported"
+    )
+    failed_records = models.IntegerField(
+        default=0,
+        help_text="Failed imports"
     )
     
-    # Métadonnées
-    created_at = models.DateTimeField(
-        default=timezone.now,
-        help_text="Date de création du log"
+    # Timing
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Processing start time"
+    )
+    completed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Processing end time"
+    )
+    duration_seconds = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Total processing time"
+    )
+    
+    # Error tracking
+    error_message = models.TextField(
+        blank=True,
+        help_text="Error details if failed"
     )
     
     class Meta:
-        db_table = 'mobility_tdriveimportlog'  # FIXED
-        verbose_name = "Log d'import T-Drive"
-        verbose_name_plural = "Logs d'import T-Drive"
+        db_table = 'mobility_importjob'
+        verbose_name = "Import Job"
+        verbose_name_plural = "Import Jobs"
         ordering = ['-created_at']
     
     def __str__(self):
-        return f"{self.file_name} - {self.status}"
+        return f"Import {self.id} - {self.status}"
+    
+    @property
+    def success_rate(self):
+        """Calculate import success rate."""
+        if self.processed_records == 0:
+            return 0.0
+        return round((self.successful_records / self.processed_records) * 100, 2)
 
 
-class TDriveValidationError(models.Model):
+class ValidationError(models.Model):
     """
-    Modèle pour stocker les erreurs de validation lors des imports.
-    
-    Attributs:
-        import_log: Référence au log d'import parent
-        line_number: Numéro de ligne dans le fichier source
-        raw_line: Contenu brut de la ligne
-        error_type: Type d'erreur (parsing, validation, etc.)
-        error_message: Message d'erreur détaillé
-    
-    Note: Permet l'analyse et le nettoyage des données problématiques
+    Records validation errors during import.
     """
     
-    # Référence à l'import
-    import_log = models.ForeignKey(
-        TDriveImportLog,
+    import_job = models.ForeignKey(
+        ImportJob,
         on_delete=models.CASCADE,
-        related_name='validation_errors',
-        help_text="Log d'import associé"
+        related_name='validation_errors'
     )
     
-    # Informations sur l'erreur
-    line_number = models.IntegerField(
+    # Error details
+    record_number = models.IntegerField(
         null=True,
         blank=True,
-        help_text="Numéro de ligne dans le fichier"
+        help_text="Line/record number in source"
     )
-    raw_line = models.TextField(
-        null=True,
+    raw_data = models.TextField(
         blank=True,
-        help_text="Contenu brut de la ligne"
+        help_text="Raw data that failed validation"
     )
     error_type = models.CharField(
         max_length=100,
-        help_text="Type d'erreur"
+        db_index=True,
+        help_text="Error category"
     )
-    error_message = models.TextField(
-        help_text="Message d'erreur détaillé"
+    error_message = models.TextField(help_text="Detailed error message")
+    
+    # Context
+    field_name = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Field that caused error"
+    )
+    expected_value = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Expected value format"
+    )
+    actual_value = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Actual value received"
     )
     
-    # Métadonnées
-    created_at = models.DateTimeField(
-        default=timezone.now,
-        help_text="Date de création"
-    )
+    created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
-        db_table = 'mobility_tdrivevalidationerror'  # FIXED
-        verbose_name = "Erreur de validation T-Drive"
-        verbose_name_plural = "Erreurs de validation T-Drive"
+        db_table = 'mobility_validationerror'
+        verbose_name = "Validation Error"
+        verbose_name_plural = "Validation Errors"
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['import_job', 'error_type'], name='idx_val_job_type'),
+        ]
     
     def __str__(self):
-        return f"{self.error_type} - Line {self.line_number}"
+        return f"{self.error_type} - Record {self.record_number}"
+
+
+# ============================================================================
+# Legacy Compatibility Models (Deprecated - To Be Migrated)
+# ============================================================================
+
+# TODO: Create data migration to move TDriveRawPoint -> GPSPoint
+# TODO: Create data migration to move TDriveTrajectory -> Trajectory
+# TODO: Remove these models after migration is complete
+
+class TDriveRawPoint(gis_models.Model):
+    """DEPRECATED: Use GPSPoint instead. Kept for migration only."""
+    
+    taxi_id = models.CharField(max_length=50, db_index=True)
+    timestamp = models.DateTimeField(db_index=True)
+    longitude = models.FloatField()
+    latitude = models.FloatField()
+    geom = gis_models.PointField(srid=4326, null=True, blank=True)
+    imported_at = models.DateTimeField(default=timezone.now)
+    source_file = models.CharField(max_length=255, null=True, blank=True)
+    is_valid = models.BooleanField(default=True)
+    validation_notes = models.TextField(null=True, blank=True)
+    
+    class Meta:
+        db_table = 'mobility_tdriverawpoint'
+        managed = False  # Don't create/modify during migrations
+
+
+class TDriveTrajectory(gis_models.Model):
+    """DEPRECATED: Use Trajectory instead. Kept for migration only."""
+    
+    taxi_id = models.CharField(max_length=50, db_index=True)
+    trajectory_date = models.DateField(db_index=True)
+    start_time = models.DateTimeField()
+    end_time = models.DateTimeField()
+    point_count = models.IntegerField()
+    total_distance_meters = models.FloatField(null=True, blank=True)
+    duration_seconds = models.IntegerField(null=True, blank=True)
+    avg_speed_kmh = models.FloatField(null=True, blank=True)
+    geom = gis_models.LineStringField(srid=4326, null=True, blank=True)
+    bbox_geom = gis_models.PolygonField(srid=4326, null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'mobility_tdrivetrajectory'
+        managed = False
+
+
+class TDriveImportLog(models.Model):
+    """DEPRECATED: Use ImportJob instead. Kept for migration only."""
+    
+    import_batch_id = models.UUIDField(default=uuid.uuid4, db_index=True)
+    file_name = models.CharField(max_length=255)
+    file_path = models.TextField(null=True, blank=True)
+    total_lines = models.IntegerField(null=True, blank=True)
+    successful_imports = models.IntegerField(default=0)
+    failed_imports = models.IntegerField(default=0)
+    start_time = models.DateTimeField()
+    end_time = models.DateTimeField(null=True, blank=True)
+    duration_seconds = models.FloatField(null=True, blank=True)
+    status = models.CharField(max_length=50, default='pending')
+    error_message = models.TextField(null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    
+    class Meta:
+        db_table = 'mobility_tdriveimportlog'
+        managed = False
+
+
+class TDriveValidationError(models.Model):
+    """DEPRECATED: Use ValidationError instead. Kept for migration only."""
+    
+    import_log = models.ForeignKey(
+        TDriveImportLog,
+        on_delete=models.CASCADE,
+        related_name='validation_errors'
+    )
+    line_number = models.IntegerField(null=True, blank=True)
+    raw_line = models.TextField(null=True, blank=True)
+    error_type = models.CharField(max_length=100)
+    error_message = models.TextField()
+    created_at = models.DateTimeField(default=timezone.now)
+    
+    class Meta:
+        db_table = 'mobility_tdrivevalidationerror'
+        managed = False
