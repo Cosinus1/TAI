@@ -6,7 +6,7 @@
     <app-map
       [odPairs]="odPairs"
       [selectedIndex]="selectedIndex"
-      [selectedTaxi]="selectedTaxi">
+      [selectedEntity]="selectedEntity">
     </app-map>  
   </main>
 
@@ -15,7 +15,7 @@
       [odPairs]="odPairs"
       [taxis]="taxis"
       (odChange)="setSelectedIndex($event)"
-      (taxiChange)="setSelectedTaxi($event)">
+      (taxiChange)="setSelectedEntity($event)">
     </app-sidebar>
   </aside>
 </div>
