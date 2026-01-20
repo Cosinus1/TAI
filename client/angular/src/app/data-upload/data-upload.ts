@@ -1,5 +1,7 @@
 import { Component, signal } from '@angular/core';
-
+import { Upload } from '../services/upload';
+import { HttpEventType } from '@angular/common/http';
+import { inject } from '@angular/core';
 @Component({
   selector: 'app-data-upload',
   imports: [],
@@ -7,8 +9,20 @@ import { Component, signal } from '@angular/core';
   styleUrl: './data-upload.scss',
 })
 export class DataUpload {
+  private upload = inject(Upload);
+
+
   selectedFormat = signal<string>('');
   showCustomFormat = signal<boolean>(false);
+  selectedFile = signal<File | null>(null);
+  isUploading = signal<boolean>(false);
+  uploadProgress = signal<number>(0)
+  uploadMessage = signal<string>('');
+  uploadMessageType = signal<'success' | 'error'>('success');
+
+  datasetName = signal<string>('');
+  datasetDescription = signal<string>('');
+  geoLocation = signal<string>('');
 
   columns = signal<{ id: number; value: string }[]>([
     { id: 1, value: '' },
@@ -17,6 +31,13 @@ export class DataUpload {
     { id: 4, value: '' },
   ]);
   nextColumnId = signal<number>(5);
+
+  onFileSelected(event: Event) {
+    const target = event.target as HTMLInputElement;
+    if (target.files?.length) {
+      this.selectedFile.set(target.files[0]);
+    }
+  }
 
   onFormatChange(event: Event) {
     const target = event.target as HTMLSelectElement;
@@ -62,5 +83,56 @@ export class DataUpload {
         col.id === id ? { ...col, value } : col
       )
     );
+  }
+
+  submitUpload() {
+    const file = this.selectedFile();
+    if (!file || !this.selectedFormat() || !this.datasetName()) {
+      this.showError('Veuillez remplir tous les champs');
+      return;
+    }
+
+    this.isUploading.set(true);
+    this.uploadProgress.set(0);
+
+    this.upload.uploadTDriveFile(
+      file,
+      this.datasetName(),
+      this.datasetDescription(),
+      this.geoLocation()
+    ).subscribe({
+      next: (event) => {
+        if (event.type === HttpEventType.UploadProgress && event.total) {
+          this.uploadProgress.set(Math.round((event.loaded / event.total) * 100));
+        } else if (event.type === HttpEventType.Response) {
+          this.showSuccess('✅ Import réussi!');
+          this.resetForm();
+          this.isUploading.set(false);
+        }
+      },
+      error: (err) => {
+        this.showError('❌ Erreur lors de l\'import');
+        this.isUploading.set(false);
+      }
+    });
+  }
+
+  resetForm() {
+    this.selectedFile.set(null);
+    this.selectedFormat.set('');
+    this.datasetName.set('');
+    this.datasetDescription.set('');
+    this.geoLocation.set('');
+    this.uploadProgress.set(0);
+  }
+
+  private showSuccess(message: string) {
+    this.uploadMessage.set(message);
+    this.uploadMessageType.set('success');
+  }
+
+  private showError(message: string) {
+    this.uploadMessage.set(message);
+    this.uploadMessageType.set('error');
   }
 }

@@ -8,17 +8,21 @@
       <input 
         type="file" 
         #fileInput 
+        id="fileInput"
         accept=".txt,.csv,.gpx"
         class="file-input"
+        (change)="onFileSelected($event)"
       >
-      <label class="file-label">
+      <label class="file-label" for="fileInput">
         <span class="upload-icon">📁</span>
         <span class="upload-text">Cliquez ou déposez votre fichier</span>
       </label>
     </div>
-    <p class="file-info">
-      ✅ Fichier sélectionné
-    </p>
+    @if (selectedFile()) {
+      <p class="file-info">
+        ✅ {{ selectedFile()?.name }}
+      </p>
+    }
   </section>
 
   <!-- Section 2: Format des données -->
@@ -122,6 +126,8 @@
         id="dataset-name"
         placeholder="Ex: Taxi Beijing 2020"
         class="text-input"
+        [value]="datasetName()"
+        (input)="datasetName.set($any($event.target).value)"
       >
     </div>
 
@@ -131,6 +137,8 @@
         id="dataset-description"
         placeholder="Décrivez vos données..."
         class="textarea-input"
+        [value]="datasetDescription()"
+        (input)="datasetDescription.set($any($event.target).value)"
       ></textarea>
     </div>
 
@@ -141,6 +149,8 @@
         id="geo-location"
         placeholder="Ex: Beijing, China"
         class="text-input"
+        [value]="geoLocation()"
+        (input)="geoLocation.set($any($event.target).value)"
       >
     </div>
   </section>
@@ -151,40 +161,54 @@
     
     <div class="validation-checklist">
       <div class="check-item">
-        <input type="checkbox" id="check-file" disabled>
+        <input type="checkbox" id="check-file" [checked]="!!selectedFile()" disabled>
         <label for="check-file">Fichier sélectionné ✅</label>
       </div>
       <div class="check-item">
-        <input type="checkbox" id="check-format" disabled>
+        <input type="checkbox" id="check-format" [checked]="!!selectedFormat()" disabled>
         <label for="check-format">Format défini ✅</label>
       </div>
       <div class="check-item">
-        <input type="checkbox" id="check-metadata" disabled>
+        <input type="checkbox" id="check-metadata" [checked]="!!datasetName()" disabled>
         <label for="check-metadata">Métadonnées complètes ✅</label>
       </div>
     </div>
 
     <div class="action-buttons">
-      <button class="btn-secondary">
+      <button class="btn-secondary" (click)="resetForm()">
         Annuler
       </button>
-      <button class="btn-primary" disabled>
-        Importer les données
+      <button 
+        class="btn-primary" 
+        (click)="submitUpload()"
+        [disabled]="!selectedFile() || !selectedFormat() || !datasetName() || isUploading()"
+      >
+        {{ isUploading() ? 'Import en cours...' : 'Importer les données' }}
       </button>
     </div>
   </section>
 
   <!-- Barre de progression -->
-  <div class="progress-section">
-    <h3>Import en cours...</h3>
-    <div class="progress-bar">
-      <div class="progress-fill" style="width: 0%"></div>
+  @if (isUploading()) {
+    <div class="progress-section active">
+      <h3>Import en cours...</h3>
+      <div class="progress-bar">
+        <div class="progress-fill" [style.width.%]="uploadProgress()">
+          {{ uploadProgress() }}%
+        </div>
+      </div>
     </div>
-    <p>0%</p>
-  </div>
+  }
 
   <!-- Message de succès/erreur -->
-  <div class="alert alert-success">
-    Import réussi! 🎉
-  </div>
+  @if (uploadMessage()) {
+    <div 
+      class="alert"
+      [class.alert-success]="uploadMessageType() === 'success'"
+      [class.alert-error]="uploadMessageType() === 'error'"
+      [class.active]="true"
+    >
+      {{ uploadMessage() }}
+    </div>
+  }
 </div>
