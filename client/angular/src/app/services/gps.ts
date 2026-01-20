@@ -47,7 +47,21 @@ export class Gps {
     if (params?.type) {
       httpParams = httpParams.set('type', params.type);
     }
-    return this.http.get<Dataset[]>(`${this.apiUrl}/datasets/`, { params: httpParams });
+    
+    // FIXED: Handle paginated response
+    return this.http.get<PaginatedResponse<Dataset> | Dataset[]>(
+      `${this.apiUrl}/datasets/`, 
+      { params: httpParams }
+    ).pipe(
+      map(response => {
+        // Check if response is paginated
+        if (response && typeof response === 'object' && 'results' in response) {
+          return (response as PaginatedResponse<Dataset>).results;
+        }
+        // If not paginated, return as-is
+        return response as Dataset[];
+      })
+    );
   }
 
   /**
@@ -355,20 +369,28 @@ export class Gps {
 
   /**
    * Get the default T-Drive dataset (for migration)
+   * FIXED: Handle both paginated and non-paginated responses
    */
   getTDriveDataset(): Observable<Dataset> {
     return this.getDatasets({ type: 'gps_trace' }).pipe(
       map(datasets => {
+        console.log('[Gps] Datasets received:', datasets);
+        
+        // datasets is now guaranteed to be an array
         const tdriveDataset = datasets.find(d => 
           d.name.toLowerCase().includes('t-drive') || 
           d.name.toLowerCase().includes('tdrive')
         );
+        
         if (!tdriveDataset && datasets.length > 0) {
+          console.log('[Gps] T-Drive dataset not found, using first dataset');
           return datasets[0]; // Fallback to first dataset
         }
+        
         if (!tdriveDataset) {
           throw new Error('No T-Drive dataset found');
         }
+        
         return tdriveDataset;
       })
     );
