@@ -1,8 +1,6 @@
 """
 ============================================================================
-Django REST Framework Views
-============================================================================
-Description: API endpoints for generic mobility data management
+Django REST Framework Views - FIXED GPS Points Query
 ============================================================================
 """
 
@@ -64,9 +62,6 @@ class StandardPagination(PageNumberPagination):
 class DatasetViewSet(viewsets.ModelViewSet):
     """
     API endpoints for managing mobility datasets.
-    
-    Allows creation, configuration, and management of different
-    mobility data sources.
     """
     queryset = Dataset.objects.all()
     serializer_class = DatasetSerializer
@@ -81,12 +76,10 @@ class DatasetViewSet(viewsets.ModelViewSet):
         """Filter datasets by query parameters."""
         queryset = super().get_queryset()
         
-        # Filter by active status
         is_active = self.request.query_params.get('is_active')
         if is_active is not None:
             queryset = queryset.filter(is_active=is_active.lower() == 'true')
         
-        # Filter by dataset type
         dataset_type = self.request.query_params.get('type')
         if dataset_type:
             queryset = queryset.filter(dataset_type=dataset_type)
@@ -95,18 +88,9 @@ class DatasetViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['get'])
     def statistics(self, request, pk=None):
-        """
-        Get detailed statistics for a specific dataset.
-        
-        Returns metrics including:
-        - Total points and entities
-        - Temporal coverage
-        - Geographic bounds
-        - Data quality metrics
-        """
+        """Get detailed statistics for a specific dataset."""
         dataset = self.get_object()
         
-        # Basic counts
         point_stats = GPSPoint.objects.filter(dataset=dataset).aggregate(
             total_points=Count('id'),
             total_entities=Count('entity_id', distinct=True),
@@ -116,10 +100,8 @@ class DatasetViewSet(viewsets.ModelViewSet):
             invalid_count=Count('id', filter=Q(is_valid=False))
         )
         
-        # Trajectory stats
         trajectory_count = Trajectory.objects.filter(dataset=dataset).count()
         
-        # Geographic bounds
         geo_bounds = GPSPoint.objects.filter(
             dataset=dataset,
             is_valid=True
@@ -130,7 +112,6 @@ class DatasetViewSet(viewsets.ModelViewSet):
             max_lat=Max('latitude')
         )
         
-        # Calculate validity rate
         total = point_stats['total_points']
         valid = point_stats['valid_count']
         validity_rate = round((valid / total * 100), 2) if total > 0 else 0.0
@@ -169,18 +150,12 @@ class DatasetViewSet(viewsets.ModelViewSet):
 
 
 # ============================================================================
-# GPS Points ViewSet
+# GPS Points ViewSet - FIXED
 # ============================================================================
 
 class GPSPointViewSet(viewsets.ModelViewSet):
     """
     API endpoints for GPS point data.
-    
-    Supports:
-    - Querying points by dataset, entity, time, and location
-    - GeoJSON output for mapping
-    - Bulk creation for user uploads
-    - Statistical aggregations
     """
     queryset = GPSPoint.objects.all()
     serializer_class = GPSPointGeoJSONSerializer
@@ -197,17 +172,14 @@ class GPSPointViewSet(viewsets.ModelViewSet):
         """Apply filters from query parameters."""
         queryset = super().get_queryset()
         
-        # Filter by dataset
         dataset_id = self.request.query_params.get('dataset')
         if dataset_id:
             queryset = queryset.filter(dataset_id=dataset_id)
         
-        # Filter by entity
         entity_id = self.request.query_params.get('entity_id')
         if entity_id:
             queryset = queryset.filter(entity_id=entity_id)
         
-        # Filter by time range
         start_time = self.request.query_params.get('start_time')
         end_time = self.request.query_params.get('end_time')
         if start_time:
@@ -215,7 +187,6 @@ class GPSPointViewSet(viewsets.ModelViewSet):
         if end_time:
             queryset = queryset.filter(timestamp__lte=end_time)
         
-        # Filter by validity
         only_valid = self.request.query_params.get('only_valid', 'true').lower() == 'true'
         if only_valid:
             queryset = queryset.filter(is_valid=True)
@@ -225,21 +196,8 @@ class GPSPointViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def query(self, request):
         """
-        Advanced query endpoint with spatial filtering.
-        
-        POST body:
-        {
-            "dataset": "uuid",
-            "entity_id": "string",
-            "start_time": "2024-01-01T00:00:00Z",
-            "end_time": "2024-01-02T00:00:00Z",
-            "min_lon": 116.3,
-            "max_lon": 116.5,
-            "min_lat": 39.9,
-            "max_lat": 40.0,
-            "only_valid": true,
-            "limit": 1000
-        }
+        FIXED: Advanced query endpoint with spatial filtering.
+        Returns proper GeoJSON FeatureCollection.
         """
         serializer = GPSPointQuerySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -276,12 +234,17 @@ class GPSPointViewSet(viewsets.ModelViewSet):
         limit = params.get('limit', 1000)
         queryset = queryset[:limit]
         
-        # Return as GeoJSON FeatureCollection
-        serializer = GPSPointGeoJSONSerializer(queryset, many=True)
+        # FIXED: Serialize points to GeoJSON features
+        point_serializer = GPSPointGeoJSONSerializer(queryset, many=True)
+        
+        # Debug logging
+        logger.info(f"Query returned {len(point_serializer.data)} points")
+        
+        # Return proper GeoJSON FeatureCollection
         return Response({
             'type': 'FeatureCollection',
-            'count': len(serializer.data),
-            'features': serializer.data
+            'count': len(point_serializer.data),
+            'features': point_serializer.data  # This is the array of features
         })
     
     @action(detail=False, methods=['get'])
@@ -311,24 +274,7 @@ class GPSPointViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['post'])
     def bulk_create(self, request):
-        """
-        Bulk create GPS points.
-        Used for user data uploads from frontend.
-        
-        POST body:
-        {
-            "dataset": "uuid",
-            "points": [
-                {
-                    "entity_id": "...",
-                    "timestamp": "...",
-                    "longitude": ...,
-                    "latitude": ...,
-                    ...
-                }
-            ]
-        }
-        """
+        """Bulk create GPS points."""
         dataset_id = request.data.get('dataset')
         points_data = request.data.get('points', [])
         
@@ -344,7 +290,6 @@ class GPSPointViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Validate dataset exists
         try:
             dataset = Dataset.objects.get(id=dataset_id)
         except Dataset.DoesNotExist:
@@ -352,12 +297,6 @@ class GPSPointViewSet(viewsets.ModelViewSet):
                 {'error': 'Dataset not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
-        # TODO: Implement bulk validation and creation
-        # - Validate each point
-        # - Track validation errors
-        # - Perform bulk insert
-        # - Return summary statistics
         
         return Response(
             {'error': 'Bulk creation not yet implemented'},
@@ -370,12 +309,7 @@ class GPSPointViewSet(viewsets.ModelViewSet):
 # ============================================================================
 
 class TrajectoryViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    API endpoints for trajectory data.
-    
-    Provides aggregated trajectory information for analysis
-    and visualization.
-    """
+    """API endpoints for trajectory data."""
     queryset = Trajectory.objects.all()
     serializer_class = TrajectoryGeoJSONSerializer
     pagination_class = StandardPagination
@@ -405,11 +339,7 @@ class TrajectoryViewSet(viewsets.ReadOnlyModelViewSet):
     
     @action(detail=False, methods=['post'])
     def query(self, request):
-        """
-        Advanced trajectory query endpoint.
-        
-        POST body: See TrajectoryQuerySerializer for parameters.
-        """
+        """Advanced trajectory query endpoint."""
         serializer = TrajectoryQuerySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         params = serializer.validated_data
@@ -447,17 +377,8 @@ class TrajectoryViewSet(viewsets.ReadOnlyModelViewSet):
     
     @action(detail=True, methods=['get'])
     def analyze(self, request, pk=None):
-        """
-        Analyze a specific trajectory.
-        
-        Returns detailed metrics and patterns.
-        """
+        """Analyze a specific trajectory."""
         trajectory = self.get_object()
-        
-        # TODO: Implement trajectory analysis
-        # - Calculate additional metrics (acceleration, stops, etc.)
-        # - Detect patterns (commute routes, frequent locations)
-        # - Generate insights
         
         return Response({
             'trajectory_id': trajectory.id,
@@ -473,14 +394,7 @@ class TrajectoryViewSet(viewsets.ReadOnlyModelViewSet):
 # ============================================================================
 
 class ImportJobViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    API endpoints for managing data imports.
-    
-    Allows users to:
-    - View import history
-    - Check import status
-    - Review validation errors
-    """
+    """API endpoints for managing data imports."""
     queryset = ImportJob.objects.all()
     serializer_class = ImportJobSerializer
     pagination_class = StandardPagination
@@ -506,26 +420,15 @@ class ImportJobViewSet(viewsets.ReadOnlyModelViewSet):
     
     @action(detail=False, methods=['post'])
     def start_import(self, request):
-        """
-        Start a new data import job.
-        
-        POST body: See ImportJobCreateSerializer for parameters.
-        
-        This endpoint initiates the import process and returns
-        the job ID for tracking progress.
-        """
+        """Start a new data import job."""
         serializer = ImportJobCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         params = serializer.validated_data
         
-        # Get dataset
         dataset = get_object_or_404(Dataset, id=params['dataset_id'])
         
-        # Create importer
-        # TODO: Support different importer types based on data format
         importer = MobilityDataImporter(dataset)
         
-        # Configure import
         import_config = {
             'field_mapping': params.get('field_mapping', {}),
             'validation': params.get('validation_config', {}),
@@ -535,7 +438,6 @@ class ImportJobViewSet(viewsets.ReadOnlyModelViewSet):
         }
         
         try:
-            # Start import based on source type
             if params['source_type'] == 'file':
                 if params.get('file_format') == 'csv':
                     job = importer.import_from_csv(
@@ -558,7 +460,6 @@ class ImportJobViewSet(viewsets.ReadOnlyModelViewSet):
                     status=status.HTTP_501_NOT_IMPLEMENTED
                 )
             
-            # Return job details
             serializer = ImportJobSerializer(job)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
             
@@ -571,11 +472,7 @@ class ImportJobViewSet(viewsets.ReadOnlyModelViewSet):
     
     @action(detail=True, methods=['get'])
     def progress(self, request, pk=None):
-        """
-        Get current progress of an import job.
-        
-        Returns real-time statistics for ongoing imports.
-        """
+        """Get current progress of an import job."""
         job = self.get_object()
         
         progress_pct = 0
@@ -603,22 +500,10 @@ class ImportJobViewSet(viewsets.ReadOnlyModelViewSet):
 # ============================================================================
 
 class EntityViewSet(viewsets.ViewSet):
-    """
-    API endpoints for entity-level statistics and analysis.
-    
-    Provides aggregated metrics for individual entities
-    (vehicles, devices, users, etc.)
-    """
+    """API endpoints for entity-level statistics and analysis."""
     
     def list(self, request):
-        """
-        List all entities with summary statistics.
-        
-        Query parameters:
-        - dataset: Filter by dataset UUID
-        - min_points: Minimum number of points
-        - order_by: Sort field (total_points, active_days, etc.)
-        """
+        """List all entities with summary statistics."""
         dataset_id = request.query_params.get('dataset')
         min_points = request.query_params.get('min_points', 0)
         
@@ -652,12 +537,7 @@ class EntityViewSet(viewsets.ViewSet):
         return Response(serializer.data)
     
     def retrieve(self, request, pk=None):
-        """
-        Get detailed statistics for a specific entity.
-        
-        Path parameter: entity_id
-        Query parameter: dataset (optional)
-        """
+        """Get detailed statistics for a specific entity."""
         dataset_id = request.query_params.get('dataset')
         
         queryset = GPSPoint.objects.filter(entity_id=pk, is_valid=True)
@@ -671,7 +551,6 @@ class EntityViewSet(viewsets.ViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
         
-        # Aggregate statistics
         stats = queryset.aggregate(
             total_points=Count('id'),
             first_timestamp=Min('timestamp'),
@@ -689,7 +568,6 @@ class EntityViewSet(viewsets.ViewSet):
         else:
             stats['avg_points_per_day'] = 0.0
         
-        # Get trajectory summary
         trajectory_stats = Trajectory.objects.filter(
             entity_id=pk
         ).aggregate(
