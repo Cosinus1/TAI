@@ -27,7 +27,7 @@
     
     <div class="format-select">
       <label for="format-select">Format prédéfini:</label>
-      <select id="format-select" class="select-input">
+      <select id="format-select" class="select-input" (change)="onFormatChange($event)">
         <option value="">-- Choisir un format --</option>
         <option value="tdrive">T-Drive (taxi_id, lat, lon, timestamp)</option>
         <option value="csv">CSV standard (latitude, longitude, timestamp)</option>
@@ -36,88 +36,78 @@
     </div>
 
     <!-- Configuration personnalisée -->
-    <div class="custom-format">
-      <p class="info-text">Indiquez l'ordre des colonnes dans votre fichier:</p>
-      
-      <div class="column-config">
-        <div class="column-item">
-          <label for="col-1">Colonne 1:</label>
-          <select id="col-1" class="select-input">
-            <option value="">Sélectionner</option>
-            <option value="taxi_id">ID Taxi</option>
-            <option value="latitude">Latitude</option>
-            <option value="longitude">Longitude</option>
-            <option value="timestamp">Timestamp</option>
-            <option value="speed">Vitesse</option>
-            <option value="direction">Direction</option>
-            <option value="ignore">Ignorer</option>
-          </select>
-        </div>
-
-        <div class="column-item">
-          <label for="col-2">Colonne 2:</label>
-          <select id="col-2" class="select-input">
-            <option value="">Sélectionner</option>
-            <option value="taxi_id">ID Taxi</option>
-            <option value="latitude">Latitude</option>
-            <option value="longitude">Longitude</option>
-            <option value="timestamp">Timestamp</option>
-            <option value="speed">Vitesse</option>
-            <option value="direction">Direction</option>
-            <option value="ignore">Ignorer</option>
-          </select>
-        </div>
-
-        <div class="column-item">
-          <label for="col-3">Colonne 3:</label>
-          <select id="col-3" class="select-input">
-            <option value="">Sélectionner</option>
-            <option value="taxi_id">ID Taxi</option>
-            <option value="latitude">Latitude</option>
-            <option value="longitude">Longitude</option>
-            <option value="timestamp">Timestamp</option>
-            <option value="speed">Vitesse</option>
-            <option value="direction">Direction</option>
-            <option value="ignore">Ignorer</option>
-          </select>
-        </div>
-
-        <div class="column-item">
-          <label for="col-4">Colonne 4:</label>
-          <select id="col-4" class="select-input">
-            <option value="">Sélectionner</option>
-            <option value="taxi_id">ID Taxi</option>
-            <option value="latitude">Latitude</option>
-            <option value="longitude">Longitude</option>
-            <option value="timestamp">Timestamp</option>
-            <option value="speed">Vitesse</option>
-            <option value="direction">Direction</option>
-            <option value="ignore">Ignorer</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Options supplémentaires -->
-      <div class="options">
-        <label>
-          <input type="checkbox" id="has-header">
-          La première ligne est une en-tête
-        </label>
+    @if (showCustomFormat()) {
+      <div class="custom-format">
+        <p class="info-text">Indiquez l'ordre des colonnes dans votre fichier:</p>
         
-        <label for="separator">Séparateur de colonnes:</label>
-        <select id="separator" class="select-input">
-          <option value=",">Virgule (,)</option>
-          <option value=";">Point-virgule (;)</option>
-          <option value="\t">Tabulation</option>
-          <option value=" ">Espace</option>
-        </select>
+        <div class="column-config">
+          @for (column of columns(); track column.id) {
+            <div class="column-item">
+              <div class="column-header">
+                <label for="col-{{ column.id }}">Colonne {{ $index + 1 }}:</label>
+                @if (columns().length > 1) {
+                  <button 
+                    type="button" 
+                    class="btn-remove"
+                    (click)="removeColumn(column.id)"
+                    title="Supprimer cette colonne"
+                  >
+                    ✕
+                  </button>
+                }
+              </div>
+              <select 
+                id="col-{{ column.id }}" 
+                class="select-input"
+                [value]="column.value"
+                (change)="updateColumn(column.id, $any($event.target).value)"   
+                >
+                <option value="">Sélectionner</option>
+                <option value="taxi_id">ID Taxi</option>
+                <option value="latitude">Latitude</option>
+                <option value="longitude">Longitude</option>
+                <option value="timestamp">Timestamp</option>
+                <option value="speed">Vitesse</option>
+                <option value="direction">Direction</option>
+                <option value="ignore">Ignorer</option>
+              </select>
+            </div>
+          }
+        </div>
+
+        <!-- Bouton pour ajouter une colonne -->
+        <div class="column-actions">
+          <button 
+            type="button" 
+            class="btn-add-column"
+            (click)="addColumn()"
+          >
+            ➕ Ajouter une colonne
+          </button>
+        </div>
+
+        <!-- Options supplémentaires -->
+        <div class="options">
+          <label>
+            <input type="checkbox" id="has-header">
+            La première ligne est une en-tête
+          </label>
+          
+          <label for="separator">Séparateur de colonnes:</label>
+          <select id="separator" class="select-input">
+            <option value=",">Virgule (,)</option>
+            <option value=";">Point-virgule (;)</option>
+            <option value="\t">Tabulation</option>
+            <option value=" ">Espace</option>
+          </select>
+        </div>
       </div>
-    </div>
+    }
 
     <!-- Aperçu du format sélectionné -->
     <div class="format-preview">
       <h3>Aperçu:</h3>
-      <p>taxi_id, latitude, longitude, timestamp</p>
+      <p>{{ getFormatPreview() }}</p>
     </div>
   </section>
 
