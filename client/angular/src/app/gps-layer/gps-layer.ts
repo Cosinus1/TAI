@@ -94,12 +94,15 @@ export class GpsLayer implements OnDestroy {
         limit: limit
       }).subscribe({
         next: resp => {
-          // Convert paginated response to features
-          const features = this.convertPointsToFeatures(resp.results || []);
+          console.log('[GpsLayer] Response for entity:', resp);
+          
+          // FIXED: Handle paginated response
+          const points = resp.results || [];
+          const features = this.convertPointsToFeatures(points);
           console.log('[GpsLayer] features for entity', features.length);
           this.render(features);
         },
-        error: err => console.error('[GpsLayer]', err),
+        error: err => console.error('[GpsLayer] Error loading entity points:', err),
       });
       return;
     }
@@ -121,14 +124,33 @@ export class GpsLayer implements OnDestroy {
       only_valid: true
     }).subscribe({
       next: resp => {
-        console.log('[GpsLayer] raw response', resp);
+        console.log('[GpsLayer] raw response:', resp);
 
-        const features = resp.features || [];
+        // FIXED: Safely extract features from response
+        let features: GeoJsonFeature[] = [];
+        
+        if (resp && typeof resp === 'object') {
+          if ('features' in resp && Array.isArray(resp.features)) {
+            // Standard GeoJSON FeatureCollection
+            features = resp.features;
+          } else if ('results' in resp && Array.isArray(resp.results)) {
+            // Paginated response with results array
+            features = this.convertPointsToFeatures(resp.results);
+          } else if (Array.isArray(resp)) {
+            // Direct array of features
+            features = resp;
+          }
+        }
+        
         console.log('[GpsLayer] extracted features count:', features.length);
         
         this.render(features);
       },
-      error: err => console.error('[GpsLayer]', err),
+      error: err => {
+        console.error('[GpsLayer] Error loading bbox points:', err);
+        // Clear layer on error
+        this.layer.clearLayers();
+      },
     });
   }
 
@@ -136,6 +158,11 @@ export class GpsLayer implements OnDestroy {
    * Convert GpsPoint[] to GeoJsonFeature[] for rendering
    */
   private convertPointsToFeatures(points: any[]): GeoJsonFeature[] {
+    if (!Array.isArray(points)) {
+      console.warn('[GpsLayer] convertPointsToFeatures received non-array:', points);
+      return [];
+    }
+
     return points.map(point => ({
       id: point.id,
       type: 'Feature' as const,
@@ -157,13 +184,20 @@ export class GpsLayer implements OnDestroy {
   }
 
   private render(features: GeoJsonFeature[]) {
-    console.log('[GpsLayer] render called');
+    console.log('[GpsLayer] render called with', features.length, 'features');
 
     this.layer.clearLayers();
+
+    // FIXED: Ensure features is an array
+    if (!Array.isArray(features)) {
+      console.error('[GpsLayer] features is not an array:', features);
+      return;
+    }
 
     let rendered = 0;
 
     for (const f of features) {
+      // FIXED: Handle both feature formats
       const props = f.properties;
 
       if (!props) {
@@ -171,11 +205,25 @@ export class GpsLayer implements OnDestroy {
         continue;
       }
 
-      const lat = props.latitude;
-      const lng = props.longitude;
+      let lat: number;
+      let lng: number;
 
-      if (lat == null || lng == null) {
+      // Try to get coordinates from geometry first
+      if (f.geometry && f.geometry.type === 'Point' && f.geometry.coordinates) {
+        lng = f.geometry.coordinates[0];
+        lat = f.geometry.coordinates[1];
+      } else if (props.latitude != null && props.longitude != null) {
+        // Fallback to properties
+        lat = props.latitude;
+        lng = props.longitude;
+      } else {
         console.warn('[GpsLayer] invalid coords', props);
+        continue;
+      }
+
+      // Validate coordinates
+      if (lat == null || lng == null || isNaN(lat) || isNaN(lng)) {
+        console.warn('[GpsLayer] invalid coordinate values', { lat, lng });
         continue;
       }
 

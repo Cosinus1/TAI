@@ -33,7 +33,7 @@ app_name = 'mobility'
 
 urlpatterns = [
     # Main API routes
-    path('api/', include(router.urls)),
+    path('', include(router.urls)),
 ]
 
 """
