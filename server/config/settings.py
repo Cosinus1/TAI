@@ -68,8 +68,6 @@ INSTALLED_APPS = [
     'corsheaders',
     'apps.core',
     'apps.mobility',
-    'apps.poi',
-    'apps.ml',
     'apps.analytics',
 ]
 

@@ -1,0 +1,357 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Mobility Dataset Import Configuration",
+  "description": "Configuration schema for importing diverse mobility datasets",
+  "type": "object",
+  "required": ["dataset_name", "dataset_type", "data_format", "source_type", "source_path"],
+  
+  "properties": {
+    "dataset_name": {
+      "type": "string",
+      "description": "Unique identifier for the dataset",
+      "minLength": 1,
+      "maxLength": 255,
+      "examples": ["Beijing Taxi Traces 2024", "Paris Bike Share Data"]
+    },
+    
+    "description": {
+      "type": "string",
+      "description": "Detailed description of the dataset",
+      "examples": ["GPS traces from Beijing taxis collected in 2024"]
+    },
+    
+    "dataset_type": {
+      "type": "string",
+      "description": "Type of mobility data",
+      "enum": ["gps_trace", "od_matrix", "trajectory", "stop_event", "custom"],
+      "examples": ["gps_trace"]
+    },
+    
+    "data_format": {
+      "type": "string",
+      "description": "Format of source data files",
+      "enum": ["csv", "txt", "json", "geojson", "shapefile", "api"],
+      "examples": ["csv"]
+    },
+    
+    "entity_type": {
+      "type": "string",
+      "description": "Type of moving entities in dataset",
+      "enum": ["taxi", "car", "bike", "bus", "person", "scooter", "truck", "other"],
+      "examples": ["taxi"]
+    },
+    
+    "geographic_scope": {
+      "type": "string",
+      "description": "Geographic area covered by dataset",
+      "examples": ["Beijing, China", "Paris, France", "New York City, USA"]
+    },
+    
+    "source_type": {
+      "type": "string",
+      "description": "Type of data source",
+      "enum": ["file", "directory", "url", "api"],
+      "examples": ["directory"]
+    },
+    
+    "source_path": {
+      "type": "string",
+      "description": "Path, URL, or API endpoint for data source",
+      "examples": ["data/taxi_traces/", "https://api.example.com/mobility", "/uploads/dataset.csv"]
+    },
+    
+    "field_mapping": {
+      "type": "object",
+      "description": "Maps standard field names to source field names",
+      "properties": {
+        "entity_id": {
+          "type": "string",
+          "description": "Field containing entity identifier",
+          "examples": ["taxi_id", "vehicle_id", "user_id"]
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Field containing timestamp",
+          "examples": ["datetime", "timestamp", "time"]
+        },
+        "longitude": {
+          "type": "string",
+          "description": "Field containing longitude",
+          "examples": ["lon", "lng", "longitude"]
+        },
+        "latitude": {
+          "type": "string",
+          "description": "Field containing latitude",
+          "examples": ["lat", "latitude"]
+        },
+        "altitude": {
+          "type": "string",
+          "description": "Field containing altitude (optional)",
+          "examples": ["alt", "elevation"]
+        },
+        "speed": {
+          "type": "string",
+          "description": "Field containing speed (optional)",
+          "examples": ["speed", "velocity"]
+        },
+        "heading": {
+          "type": "string",
+          "description": "Field containing heading/bearing (optional)",
+          "examples": ["bearing", "direction", "heading"]
+        },
+        "accuracy": {
+          "type": "string",
+          "description": "Field containing GPS accuracy (optional)",
+          "examples": ["accuracy", "hdop"]
+        }
+      },
+      "required": ["entity_id", "timestamp", "longitude", "latitude"],
+      "additionalProperties": true
+    },
+    
+    "validation": {
+      "type": "object",
+      "description": "Validation rules for data quality",
+      "properties": {
+        "strict_mode": {
+          "type": "boolean",
+          "description": "Reject any invalid data (true) or flag as invalid (false)",
+          "default": false
+        },
+        "coordinate_bounds": {
+          "type": "array",
+          "description": "Geographic bounding box [min_lon, min_lat, max_lon, max_lat]",
+          "items": {"type": "number"},
+          "minItems": 4,
+          "maxItems": 4,
+          "examples": [[116.25, 39.80, 116.60, 40.05]]
+        },
+        "speed_threshold": {
+          "type": "number",
+          "description": "Maximum plausible speed in km/h",
+          "minimum": 0,
+          "default": 200,
+          "examples": [150]
+        },
+        "timestamp_format": {
+          "type": "string",
+          "description": "Expected timestamp format (Python strftime format)",
+          "examples": ["%Y-%m-%d %H:%M:%S", "%d/%m/%Y %H:%M:%S"]
+        },
+        "timezone": {
+          "type": "string",
+          "description": "Timezone for timestamps (if not in data)",
+          "examples": ["UTC", "Asia/Shanghai", "Europe/Paris"]
+        }
+      }
+    },
+    
+    "file_format": {
+      "type": "string",
+      "description": "Specific file format (for source_type='file')",
+      "enum": ["csv", "txt", "json", "geojson"],
+      "examples": ["csv"]
+    },
+    
+    "delimiter": {
+      "type": "string",
+      "description": "Field delimiter for CSV/TXT files",
+      "default": ",",
+      "maxLength": 5,
+      "examples": [",", ";", "\t", "|"]
+    },
+    
+    "skip_header": {
+      "type": "boolean",
+      "description": "Skip first row as header in CSV/TXT files",
+      "default": true
+    },
+    
+    "encoding": {
+      "type": "string",
+      "description": "File encoding",
+      "default": "utf-8",
+      "examples": ["utf-8", "latin-1", "iso-8859-1"]
+    },
+    
+    "max_files": {
+      "type": "integer",
+      "description": "Maximum files to process (for directory imports)",
+      "minimum": 1,
+      "examples": [100]
+    },
+    
+    "batch_size": {
+      "type": "integer",
+      "description": "Records per batch for database insertion",
+      "minimum": 100,
+      "maximum": 10000,
+      "default": 1000
+    },
+    
+    "api_config": {
+      "type": "object",
+      "description": "Configuration for API imports",
+      "properties": {
+        "method": {
+          "type": "string",
+          "enum": ["GET", "POST"],
+          "default": "GET"
+        },
+        "headers": {
+          "type": "object",
+          "description": "HTTP headers",
+          "additionalProperties": {"type": "string"}
+        },
+        "auth": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["basic", "bearer", "api_key"]
+            },
+            "credentials": {
+              "type": "object"
+            }
+          }
+        },
+        "pagination": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["offset", "cursor", "page"]
+            },
+            "page_size": {
+              "type": "integer",
+              "default": 100
+            }
+          }
+        }
+      }
+    },
+    
+    "preprocessing": {
+      "type": "object",
+      "description": "Data preprocessing options",
+      "properties": {
+        "remove_duplicates": {
+          "type": "boolean",
+          "description": "Remove duplicate timestamps per entity",
+          "default": true
+        },
+        "interpolate_gaps": {
+          "type": "boolean",
+          "description": "Interpolate missing points in time gaps",
+          "default": false
+        },
+        "filter_outliers": {
+          "type": "boolean",
+          "description": "Remove speed/distance outliers",
+          "default": true
+        },
+        "minimum_points": {
+          "type": "integer",
+          "description": "Minimum points required per entity",
+          "minimum": 1,
+          "default": 10
+        }
+      }
+    }
+  },
+  
+  "examples": [
+    {
+      "dataset_name": "T-Drive Beijing Taxi",
+      "description": "Microsoft T-Drive taxi trajectories from Beijing",
+      "dataset_type": "gps_trace",
+      "data_format": "txt",
+      "entity_type": "taxi",
+      "geographic_scope": "Beijing, China",
+      "source_type": "directory",
+      "source_path": "data/tdrive/",
+      "field_mapping": {
+        "entity_id": "taxi_id",
+        "timestamp": "timestamp",
+        "longitude": "longitude",
+        "latitude": "latitude"
+      },
+      "validation": {
+        "strict_mode": false,
+        "coordinate_bounds": [116.25, 39.80, 116.60, 40.05],
+        "speed_threshold": 150
+      },
+      "file_format": "txt",
+      "delimiter": ",",
+      "skip_header": false
+    },
+    {
+      "dataset_name": "Paris Bike Share",
+      "description": "Velib bike sharing GPS traces",
+      "dataset_type": "gps_trace",
+      "data_format": "csv",
+      "entity_type": "bike",
+      "geographic_scope": "Paris, France",
+      "source_type": "file",
+      "source_path": "uploads/paris_bikes.csv",
+      "field_mapping": {
+        "entity_id": "bike_id",
+        "timestamp": "datetime",
+        "longitude": "lon",
+        "latitude": "lat",
+        "speed": "speed_kmh"
+      },
+      "validation": {
+        "strict_mode": true,
+        "coordinate_bounds": [2.22, 48.81, 2.47, 48.90],
+        "speed_threshold": 30,
+        "timestamp_format": "%Y-%m-%d %H:%M:%S",
+        "timezone": "Europe/Paris"
+      },
+      "skip_header": true,
+      "delimiter": ",",
+      "preprocessing": {
+        "remove_duplicates": true,
+        "filter_outliers": true,
+        "minimum_points": 5
+      }
+    },
+    {
+      "dataset_name": "NYC Yellow Cabs API",
+      "description": "Real-time NYC taxi data from API",
+      "dataset_type": "gps_trace",
+      "data_format": "api",
+      "entity_type": "taxi",
+      "geographic_scope": "New York City, USA",
+      "source_type": "api",
+      "source_path": "https://api.nyc.gov/taxi/locations",
+      "field_mapping": {
+        "entity_id": "medallion",
+        "timestamp": "pickup_datetime",
+        "longitude": "pickup_longitude",
+        "latitude": "pickup_latitude"
+      },
+      "api_config": {
+        "method": "GET",
+        "headers": {
+          "Accept": "application/json"
+        },
+        "auth": {
+          "type": "api_key",
+          "credentials": {
+            "header": "X-API-Key",
+            "key": "${API_KEY}"
+          }
+        },
+        "pagination": {
+          "type": "offset",
+          "page_size": 1000
+        }
+      },
+      "validation": {
+        "coordinate_bounds": [-74.05, 40.63, -73.75, 40.85],
+        "speed_threshold": 120
+      }
+    }
+  ]
+}
