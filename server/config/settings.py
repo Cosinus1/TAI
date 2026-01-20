@@ -6,6 +6,44 @@ import os
 import sys
 from pathlib import Path
 
+# FIX: Set PROJ_LIB path for Windows BEFORE any imports
+if os.name == 'nt':  # Windows only
+    # Utilisez le chemin de l'environnement virtuel actuel, pas l'installation de base
+    env_path = sys.prefix  # C'est le chemin de votre environnement virtuel (tai-env)
+    
+    # Cherchez proj dans plusieurs emplacements possibles
+    possible_proj_paths = [
+        os.path.join(env_path, 'Library', 'share', 'proj'),  # Windows standard
+        os.path.join(env_path, 'share', 'proj'),  # Alternative
+        os.path.join(env_path, 'proj'),  # Alternative 2
+        # Recherchez aussi dans l'installation de base (pour les dépendances partagées)
+        os.path.join(os.path.dirname(env_path), '..', 'Library', 'share', 'proj'),
+    ]
+    
+    possible_gdal_paths = [
+        os.path.join(env_path, 'Library', 'share', 'gdal'),
+        os.path.join(env_path, 'share', 'gdal'),
+        os.path.join(env_path, 'gdal'),
+        os.path.join(os.path.dirname(env_path), '..', 'Library', 'share', 'gdal'),
+    ]
+    
+    # Cherchez et définissez PROJ_LIB
+    for proj_path in possible_proj_paths:
+        if os.path.exists(proj_path):
+            os.environ['PROJ_LIB'] = proj_path
+            print(f"✅ PROJ_LIB défini sur : {proj_path}")
+            break
+    else:
+        print("❌ Aucun chemin PROJ_LIB trouvé")
+    
+    # Cherchez et définissez GDAL_DATA
+    for gdal_path in possible_gdal_paths:
+        if os.path.exists(gdal_path):
+            os.environ['GDAL_DATA'] = gdal_path
+            print(f"✅ GDAL_DATA défini sur : {gdal_path}")
+            break
+    else:
+        print("⚠️  GDAL_DATA non trouvé, mais ce n'est pas toujours critique")
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 

@@ -24,9 +24,9 @@
       <label for="taxi-select">Sélectionner un taxi :</label>
       <select id="taxi-select" (change)="emitTaxiChange($event)">
         <option value="">Tous les taxis</option>
-        @for (taxi of taxis; track $index) {
-          <option [value]="taxi.taxi_id">
-            Taxi {{ taxi.taxi_id }} ({{ taxi.avg_points_per_day }} pts/jour)
+        @for (entity of entities; track $index) {
+          <option [value]="entity.entity_id">
+            Entity {{ entity.entity_id }} ({{ entity.avg_points_per_day }} pts/jour)
           </option>
         }
       </select>

@@ -1,3 +1,4 @@
+// client/angular/src/app/gps-layer/gps-layer.ts
 import { Component, Input, inject, OnDestroy, effect } from '@angular/core';
 import * as L from 'leaflet';
 import { Gps } from '../services/gps';
@@ -12,13 +13,15 @@ import { Bbox, GeoJsonFeature } from '../interfaces/gps';
 })
 export class GpsLayer implements OnDestroy {
   @Input({ required: true }) map!: L.Map;
-  @Input() selectedTaxi: string | null = null;
+  @Input() selectedEntity: string | null = null;
+  @Input() datasetId?: string; // Optional: specify which dataset to use
 
   private gps = inject(Gps);
   private mode = inject(Mode);
 
   private layer = L.layerGroup();
   private moveListenerAttached = false;
+  private currentDatasetId?: string;
 
   private onMoveEnd = () => {
     console.log('[GpsLayer] map moveend');
@@ -27,6 +30,9 @@ export class GpsLayer implements OnDestroy {
   };
 
   constructor() {
+    // Initialize dataset
+    this.initializeDataset();
+
     effect(() => {
       const currentMode = this.mode.mode();
       console.log('[GpsLayer] effect triggered, mode =', currentMode);
@@ -50,20 +56,58 @@ export class GpsLayer implements OnDestroy {
     });
   }
 
+  /**
+   * Initialize the dataset to use
+   */
+  private initializeDataset(): void {
+    // If dataset ID is provided, use it
+    if (this.datasetId) {
+      this.currentDatasetId = this.datasetId;
+      return;
+    }
+
+    // Otherwise, try to get the T-Drive dataset for backward compatibility
+    this.gps.getTDriveDataset().subscribe({
+      next: dataset => {
+        console.log('[GpsLayer] Using dataset:', dataset.name);
+        this.currentDatasetId = dataset.id;
+        
+        // Reload points if we're in GPS mode
+        if (this.mode.mode() === 'gps' && this.map) {
+          this.loadPointsInViewport();
+        }
+      },
+      error: err => {
+        console.error('[GpsLayer] Failed to get default dataset:', err);
+        // Continue without dataset filter - will show all points
+      }
+    });
+  }
+
   private loadPointsInViewport(limit = 1000) {
-    if (this.selectedTaxi) {
-      console.log('[GpsLayer] load points for taxi', this.selectedTaxi);
-      this.gps.getPointsByTaxi(this.selectedTaxi, limit).subscribe({
+    // Load points for specific entity (taxi)
+    if (this.selectedEntity) {
+      console.log('[GpsLayer] load points for entity', this.selectedEntity);
+      
+      this.gps.getPointsByEntity(this.selectedEntity, {
+        dataset: this.currentDatasetId,
+        limit: limit
+      }).subscribe({
         next: resp => {
-          const features = resp.results?.features ?? [];
-          console.log('[GpsLayer] features for taxi', features.length);
+          console.log('[GpsLayer] Response for entity:', resp);
+          
+          // FIXED: Handle paginated response
+          const points = resp.results || [];
+          const features = this.convertPointsToFeatures(points);
+          console.log('[GpsLayer] features for entity', features.length);
           this.render(features);
         },
-        error: err => console.error('[GpsLayer]', err),
+        error: err => console.error('[GpsLayer] Error loading entity points:', err),
       });
       return;
     }
 
+    // Load points in bounding box
     const b = this.map.getBounds();
     const bbox: Bbox = {
       minLon: b.getWest(),
@@ -74,27 +118,86 @@ export class GpsLayer implements OnDestroy {
 
     console.log('[GpsLayer] request bbox', bbox);
 
-    this.gps.getPointsInBbox(bbox, limit).subscribe({
+    this.gps.getPointsInBbox(bbox, {
+      dataset: this.currentDatasetId,
+      limit: limit,
+      only_valid: true
+    }).subscribe({
       next: resp => {
-        console.log('[GpsLayer] raw response', resp);
+        console.log('[GpsLayer] raw response:', resp);
 
-        const features = resp.features?.features ?? [];
+        // FIXED: Safely extract features from response
+        let features: GeoJsonFeature[] = [];
+        
+        if (resp && typeof resp === 'object') {
+          if ('features' in resp && Array.isArray(resp.features)) {
+            // Standard GeoJSON FeatureCollection
+            features = resp.features;
+          } else if ('results' in resp && Array.isArray(resp.results)) {
+            // Paginated response with results array
+            features = this.convertPointsToFeatures(resp.results);
+          } else if (Array.isArray(resp)) {
+            // Direct array of features
+            features = resp;
+          }
+        }
+        
         console.log('[GpsLayer] extracted features count:', features.length);
         
         this.render(features);
       },
-      error: err => console.error('[GpsLayer]', err),
+      error: err => {
+        console.error('[GpsLayer] Error loading bbox points:', err);
+        // Clear layer on error
+        this.layer.clearLayers();
+      },
     });
   }
 
+  /**
+   * Convert GpsPoint[] to GeoJsonFeature[] for rendering
+   */
+  private convertPointsToFeatures(points: any[]): GeoJsonFeature[] {
+    if (!Array.isArray(points)) {
+      console.warn('[GpsLayer] convertPointsToFeatures received non-array:', points);
+      return [];
+    }
+
+    return points.map(point => ({
+      id: point.id,
+      type: 'Feature' as const,
+      geometry: {
+        type: 'Point' as const,
+        coordinates: [point.longitude, point.latitude]
+      },
+      properties: {
+        entity_id: point.entity_id,
+        timestamp: point.timestamp,
+        longitude: point.longitude,
+        latitude: point.latitude,
+        is_valid: point.is_valid,
+        speed: point.speed,
+        heading: point.heading,
+        dataset_name: point.dataset_name
+      }
+    }));
+  }
+
   private render(features: GeoJsonFeature[]) {
-    console.log('[GpsLayer] render called');
+    console.log('[GpsLayer] render called with', features.length, 'features');
 
     this.layer.clearLayers();
+
+    // FIXED: Ensure features is an array
+    if (!Array.isArray(features)) {
+      console.error('[GpsLayer] features is not an array:', features);
+      return;
+    }
 
     let rendered = 0;
 
     for (const f of features) {
+      // FIXED: Handle both feature formats
       const props = f.properties;
 
       if (!props) {
@@ -102,27 +205,59 @@ export class GpsLayer implements OnDestroy {
         continue;
       }
 
-      const lat = props.latitude;
-      const lng = props.longitude;
+      let lat: number;
+      let lng: number;
 
-      if (lat == null || lng == null){
+      // Try to get coordinates from geometry first
+      if (f.geometry && f.geometry.type === 'Point' && f.geometry.coordinates) {
+        lng = f.geometry.coordinates[0];
+        lat = f.geometry.coordinates[1];
+      } else if (props.latitude != null && props.longitude != null) {
+        // Fallback to properties
+        lat = props.latitude;
+        lng = props.longitude;
+      } else {
         console.warn('[GpsLayer] invalid coords', props);
         continue;
-      } 
+      }
+
+      // Validate coordinates
+      if (lat == null || lng == null || isNaN(lat) || isNaN(lng)) {
+        console.warn('[GpsLayer] invalid coordinate values', { lat, lng });
+        continue;
+      }
+
+      // Color based on validity
+      const fillColor = props.is_valid ? '#3388ff' : '#ff6b6b';
 
       const marker = L.circleMarker([lat, lng], {
         radius: 5,
-        fillColor: props.is_valid ? '#3388ff' : '#ff6b6b',
+        fillColor: fillColor,
         color: '#fff',
         weight: 1,
         fillOpacity: 0.8,
       });
 
-      marker.bindPopup(`
-        <strong>Taxi ${props.taxi_id}</strong><br/>
-        ${lat.toFixed(5)}, ${lng.toFixed(5)}<br/>
-        <small>${new Date(props.timestamp).toLocaleString()}</small>
-      `);
+      // Build popup content
+      let popupContent = `
+        <strong>Entity: ${props.entity_id}</strong><br/>
+        <strong>Coords:</strong> ${lat.toFixed(5)}, ${lng.toFixed(5)}<br/>
+        <strong>Time:</strong> ${new Date(props.timestamp).toLocaleString()}<br/>
+      `;
+
+      if (props.speed != null) {
+        popupContent += `<strong>Speed:</strong> ${props.speed.toFixed(1)} km/h<br/>`;
+      }
+
+      if (props.heading != null) {
+        popupContent += `<strong>Heading:</strong> ${props.heading.toFixed(0)}°<br/>`;
+      }
+
+      if (props.dataset_name) {
+        popupContent += `<small>Dataset: ${props.dataset_name}</small>`;
+      }
+
+      marker.bindPopup(popupContent);
 
       marker.addTo(this.layer);
       rendered++;
@@ -131,7 +266,6 @@ export class GpsLayer implements OnDestroy {
   }
 
   private detach() {
-
     console.log('[GpsLayer] detach');
 
     if (this.moveListenerAttached) {

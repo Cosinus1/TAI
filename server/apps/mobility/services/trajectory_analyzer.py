@@ -6,6 +6,7 @@ Description: Enhanced trajectory analysis using specialized mobility libraries
             for trajectory segmentation, stop detection, and pattern analysis
 ============================================================================
 """
+from __future__ import annotations
 
 import pandas as pd
 import numpy as np
@@ -13,7 +14,6 @@ from typing import List, Dict, Optional, Tuple
 from datetime import datetime, timedelta
 import logging
 
-# Mobility analysis libraries
 try:
     import skmob
     from skmob import TrajDataFrame
@@ -22,6 +22,7 @@ try:
     SKMOB_AVAILABLE = True
 except ImportError:
     SKMOB_AVAILABLE = False
+    TrajDataFrame = pd.DataFrame
     logging.warning("scikit-mobility not available")
 
 try:
@@ -223,7 +224,7 @@ class TrajectoryAnalyzer:
                                    start_date: datetime, 
                                    end_date: datetime) -> Optional[TrajectoryCollection]:
         """
-        Create a MovingPandas TrajectoryCollection for multiple taxis.
+        Create a MovingPandas TrajectoryCollection for multiple entities.
         
         Args:
             taxi_ids: List of taxi identifiers
