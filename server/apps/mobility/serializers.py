@@ -1,8 +1,8 @@
 """
 ============================================================================
-Django REST Framework Serializers
+Django REST Framework Serializers - FIXED
 ============================================================================
-Description: Generic serializers for mobility data API
+Key fix: Added avg_speed field to EntityStatisticsSerializer
 ============================================================================
 """
 
@@ -546,7 +546,7 @@ class TrajectoryQuerySerializer(serializers.Serializer):
 
 
 # ============================================================================
-# Statistics Serializers
+# Statistics Serializers - FIXED
 # ============================================================================
 
 class EntityStatisticsSerializer(serializers.Serializer):
@@ -558,8 +558,12 @@ class EntityStatisticsSerializer(serializers.Serializer):
     last_timestamp = serializers.DateTimeField()
     active_days = serializers.IntegerField()
     avg_points_per_day = serializers.FloatField()
-    total_distance_meters = serializers.FloatField(required=False)
-    avg_speed_kmh = serializers.FloatField(required=False)
+    total_distance_meters = serializers.FloatField(required=False, allow_null=True)
+    avg_speed = serializers.FloatField(required=False, allow_null=True)  # FIX: Changed from avg_speed_kmh to avg_speed
+    
+    # Optional trajectory statistics
+    total_trajectories = serializers.IntegerField(required=False, allow_null=True)
+    avg_trajectory_distance = serializers.FloatField(required=False, allow_null=True)
 
 
 class DatasetStatisticsSerializer(serializers.Serializer):
