@@ -1,7 +1,7 @@
 import { Component, Input, Output, EventEmitter, inject } from '@angular/core';
 import { Mode } from '../services/mode';
 import { ODPair } from '../interfaces/od';
-import { Taxi } from '../interfaces/gps';
+import { EntityStatistics, Taxi } from '../interfaces/gps';
 
 
 @Component({
@@ -15,7 +15,7 @@ export class Sidebar {
   @Input() odPairs: ODPair[] = [];
   // Événement émis lorsque l'utilisateur sélectionne une paire OD.
   // On émet `number | null` : `null` signifie "tous les OD".
-  @Input() taxis: Taxi[] = [];
+  @Input() entities: EntityStatistics[] = [];
   @Output() odChange = new EventEmitter<number | null>();
   @Output() taxiChange = new EventEmitter<string | null>();
   @Output() apply = new EventEmitter<void>();

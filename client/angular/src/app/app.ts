@@ -34,7 +34,7 @@ export class App implements OnInit {
   selectedIndex: number | null = null;
   
   // Entities (taxis, vehicles, etc.)
-  taxis: Taxi[] = [];
+  entities: EntityStatistics[] = [];
   selectedEntity: string | null = null;
 
   // Dataset ID for filtering (optional)
@@ -71,11 +71,10 @@ export class App implements OnInit {
    * Load entities (taxis/vehicles) for the current dataset
    */
   private loadEntities(): void {
-    // Use legacy getTaxis() method for backward compatibility
-    this.gps.getTaxis(this.currentDatasetId).subscribe({
-      next: taxis => {
-        console.log('Entities loaded:', taxis.length);
-        this.taxis = taxis;
+    this.gps.getEntities({ dataset: this.currentDatasetId, min_points: 100}).subscribe({
+      next: entities => {
+        console.log('Entities loaded:', entities.length);
+        this.entities = entities;
       },
       error: err => console.error('Failed to load entities:', err)
     });

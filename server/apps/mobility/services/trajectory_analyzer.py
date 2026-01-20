@@ -224,7 +224,7 @@ class TrajectoryAnalyzer:
                                    start_date: datetime, 
                                    end_date: datetime) -> Optional[TrajectoryCollection]:
         """
-        Create a MovingPandas TrajectoryCollection for multiple taxis.
+        Create a MovingPandas TrajectoryCollection for multiple entities.
         
         Args:
             taxi_ids: List of taxi identifiers

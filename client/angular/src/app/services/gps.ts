@@ -335,16 +335,6 @@ export class Gps {
   // ============================================================================
 
   /**
-   * @deprecated Use getEntities() instead
-   * Get taxis (entities) for backward compatibility
-   */
-  getTaxis(datasetId?: string): Observable<Taxi[]> {
-    return this.getEntities({ dataset: datasetId }).pipe(
-      map(entities => entities.map(entityToTaxi))
-    );
-  }
-
-  /**
    * @deprecated Use getPointsByEntity() instead
    * Get points by taxi ID for backward compatibility
    */
