@@ -1,0 +1,214 @@
+<div class="upload-container">
+  <h1>Importer vos données GPS</h1>
+  
+  <!-- Section 1: Sélection du fichier -->
+  <section class="upload-section">
+    <h2>1. Sélectionner votre fichier</h2>
+    <div class="file-input-wrapper">
+      <input 
+        type="file" 
+        #fileInput 
+        id="fileInput"
+        accept=".txt,.csv,.gpx"
+        class="file-input"
+        (change)="onFileSelected($event)"
+      >
+      <label class="file-label" for="fileInput">
+        <span class="upload-icon">📁</span>
+        <span class="upload-text">Cliquez ou déposez votre fichier</span>
+      </label>
+    </div>
+    @if (selectedFile()) {
+      <p class="file-info">
+        ✅ {{ selectedFile()?.name }}
+      </p>
+    }
+  </section>
+
+  <!-- Section 2: Format des données -->
+  <section class="upload-section">
+    <h2>2. Définir le format de vos données</h2>
+    
+    <div class="format-select">
+      <label for="format-select">Format prédéfini:</label>
+      <select id="format-select" class="select-input" (change)="onFormatChange($event)">
+        <option value="">-- Choisir un format --</option>
+        <option value="tdrive">T-Drive (taxi_id, lat, lon, timestamp)</option>
+        <option value="csv">CSV standard (latitude, longitude, timestamp)</option>
+        <option value="custom">Format personnalisé</option>
+      </select>
+    </div>
+
+    <!-- Configuration personnalisée -->
+    @if (showCustomFormat()) {
+      <div class="custom-format">
+        <p class="info-text">Indiquez l'ordre des colonnes dans votre fichier:</p>
+        
+        <div class="column-config">
+          @for (column of columns(); track column.id) {
+            <div class="column-item">
+              <div class="column-header">
+                <label for="col-{{ column.id }}">Colonne {{ $index + 1 }}:</label>
+                @if (columns().length > 1) {
+                  <button 
+                    type="button" 
+                    class="btn-remove"
+                    (click)="removeColumn(column.id)"
+                    title="Supprimer cette colonne"
+                  >
+                    ✕
+                  </button>
+                }
+              </div>
+              <select 
+                id="col-{{ column.id }}" 
+                class="select-input"
+                [value]="column.value"
+                (change)="updateColumn(column.id, $any($event.target).value)"   
+                >
+                <option value="">Sélectionner</option>
+                <option value="taxi_id">ID Taxi</option>
+                <option value="latitude">Latitude</option>
+                <option value="longitude">Longitude</option>
+                <option value="timestamp">Timestamp</option>
+                <option value="speed">Vitesse</option>
+                <option value="direction">Direction</option>
+                <option value="ignore">Ignorer</option>
+              </select>
+            </div>
+          }
+        </div>
+
+        <!-- Bouton pour ajouter une colonne -->
+        <div class="column-actions">
+          <button 
+            type="button" 
+            class="btn-add-column"
+            (click)="addColumn()"
+          >
+            ➕ Ajouter une colonne
+          </button>
+        </div>
+
+        <!-- Options supplémentaires -->
+        <div class="options">
+          <label>
+            <input type="checkbox" id="has-header">
+            La première ligne est une en-tête
+          </label>
+          
+          <label for="separator">Séparateur de colonnes:</label>
+          <select id="separator" class="select-input">
+            <option value=",">Virgule (,)</option>
+            <option value=";">Point-virgule (;)</option>
+            <option value="\t">Tabulation</option>
+            <option value=" ">Espace</option>
+          </select>
+        </div>
+      </div>
+    }
+
+    <!-- Aperçu du format sélectionné -->
+    <div class="format-preview">
+      <h3>Aperçu:</h3>
+      <p>{{ getFormatPreview() }}</p>
+    </div>
+  </section>
+
+  <!-- Section 3: Métadonnées -->
+  <section class="upload-section">
+    <h2>3. Informations sur le dataset</h2>
+    
+    <div class="form-group">
+      <label for="dataset-name">Nom du dataset:</label>
+      <input 
+        type="text" 
+        id="dataset-name"
+        placeholder="Ex: Taxi Beijing 2020"
+        class="text-input"
+        [value]="datasetName()"
+        (input)="datasetName.set($any($event.target).value)"
+      >
+    </div>
+
+    <div class="form-group">
+      <label for="dataset-description">Description:</label>
+      <textarea 
+        id="dataset-description"
+        placeholder="Décrivez vos données..."
+        class="textarea-input"
+        [value]="datasetDescription()"
+        (input)="datasetDescription.set($any($event.target).value)"
+      ></textarea>
+    </div>
+
+    <div class="form-group">
+      <label for="geo-location">Zone géographique (optionnel):</label>
+      <input 
+        type="text" 
+        id="geo-location"
+        placeholder="Ex: Beijing, China"
+        class="text-input"
+        [value]="geoLocation()"
+        (input)="geoLocation.set($any($event.target).value)"
+      >
+    </div>
+  </section>
+
+  <!-- Section 4: Validation -->
+  <section class="upload-section">
+    <h2>4. Valider et importer</h2>
+    
+    <div class="validation-checklist">
+      <div class="check-item">
+        <input type="checkbox" id="check-file" [checked]="!!selectedFile()" disabled>
+        <label for="check-file">Fichier sélectionné ✅</label>
+      </div>
+      <div class="check-item">
+        <input type="checkbox" id="check-format" [checked]="!!selectedFormat()" disabled>
+        <label for="check-format">Format défini ✅</label>
+      </div>
+      <div class="check-item">
+        <input type="checkbox" id="check-metadata" [checked]="!!datasetName()" disabled>
+        <label for="check-metadata">Métadonnées complètes ✅</label>
+      </div>
+    </div>
+
+    <div class="action-buttons">
+      <button class="btn-secondary" (click)="resetForm()">
+        Annuler
+      </button>
+      <button 
+        class="btn-primary" 
+        (click)="submitUpload()"
+        [disabled]="!selectedFile() || !selectedFormat() || !datasetName() || isUploading()"
+      >
+        {{ isUploading() ? 'Import en cours...' : 'Importer les données' }}
+      </button>
+    </div>
+  </section>
+
+  <!-- Barre de progression -->
+  @if (isUploading()) {
+    <div class="progress-section active">
+      <h3>Import en cours...</h3>
+      <div class="progress-bar">
+        <div class="progress-fill" [style.width.%]="uploadProgress()">
+          {{ uploadProgress() }}%
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Message de succès/erreur -->
+  @if (uploadMessage()) {
+    <div 
+      class="alert"
+      [class.alert-success]="uploadMessageType() === 'success'"
+      [class.alert-error]="uploadMessageType() === 'error'"
+      [class.active]="true"
+    >
+      {{ uploadMessage() }}
+    </div>
+  }
+</div>
