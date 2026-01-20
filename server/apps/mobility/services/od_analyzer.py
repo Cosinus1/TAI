@@ -79,7 +79,7 @@ class ODAnalyzer:
                           start_date: datetime, 
                           end_date: datetime) -> Dict:
         """
-        Analyze Origin-Destination patterns for multiple taxis.
+        Analyze Origin-Destination patterns for multiple entities.
         
         Args:
             taxi_ids: List of taxi identifiers

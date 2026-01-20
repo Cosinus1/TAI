@@ -1,1 +1,0 @@
-# POI services package

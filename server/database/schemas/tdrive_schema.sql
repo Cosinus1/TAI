@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Schema PostgreSQL pour le stockage des données T-Drive (Microsoft)
 -- ============================================================================
--- Description: Ce schéma permet de stocker les trajectoires GPS des taxis
+-- Description: Ce schéma permet de stocker les trajectoires GPS des entités
 -- de Beijing avec support pour les analyses spatiales et temporelles
 -- ============================================================================
 
