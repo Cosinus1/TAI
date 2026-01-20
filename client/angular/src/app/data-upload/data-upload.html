@@ -1,0 +1,200 @@
+<div class="upload-container">
+  <h1>Importer vos données GPS</h1>
+  
+  <!-- Section 1: Sélection du fichier -->
+  <section class="upload-section">
+    <h2>1. Sélectionner votre fichier</h2>
+    <div class="file-input-wrapper">
+      <input 
+        type="file" 
+        #fileInput 
+        accept=".txt,.csv,.gpx"
+        class="file-input"
+      >
+      <label class="file-label">
+        <span class="upload-icon">📁</span>
+        <span class="upload-text">Cliquez ou déposez votre fichier</span>
+      </label>
+    </div>
+    <p class="file-info">
+      ✅ Fichier sélectionné
+    </p>
+  </section>
+
+  <!-- Section 2: Format des données -->
+  <section class="upload-section">
+    <h2>2. Définir le format de vos données</h2>
+    
+    <div class="format-select">
+      <label for="format-select">Format prédéfini:</label>
+      <select id="format-select" class="select-input">
+        <option value="">-- Choisir un format --</option>
+        <option value="tdrive">T-Drive (taxi_id, lat, lon, timestamp)</option>
+        <option value="csv">CSV standard (latitude, longitude, timestamp)</option>
+        <option value="custom">Format personnalisé</option>
+      </select>
+    </div>
+
+    <!-- Configuration personnalisée -->
+    <div class="custom-format">
+      <p class="info-text">Indiquez l'ordre des colonnes dans votre fichier:</p>
+      
+      <div class="column-config">
+        <div class="column-item">
+          <label for="col-1">Colonne 1:</label>
+          <select id="col-1" class="select-input">
+            <option value="">Sélectionner</option>
+            <option value="taxi_id">ID Taxi</option>
+            <option value="latitude">Latitude</option>
+            <option value="longitude">Longitude</option>
+            <option value="timestamp">Timestamp</option>
+            <option value="speed">Vitesse</option>
+            <option value="direction">Direction</option>
+            <option value="ignore">Ignorer</option>
+          </select>
+        </div>
+
+        <div class="column-item">
+          <label for="col-2">Colonne 2:</label>
+          <select id="col-2" class="select-input">
+            <option value="">Sélectionner</option>
+            <option value="taxi_id">ID Taxi</option>
+            <option value="latitude">Latitude</option>
+            <option value="longitude">Longitude</option>
+            <option value="timestamp">Timestamp</option>
+            <option value="speed">Vitesse</option>
+            <option value="direction">Direction</option>
+            <option value="ignore">Ignorer</option>
+          </select>
+        </div>
+
+        <div class="column-item">
+          <label for="col-3">Colonne 3:</label>
+          <select id="col-3" class="select-input">
+            <option value="">Sélectionner</option>
+            <option value="taxi_id">ID Taxi</option>
+            <option value="latitude">Latitude</option>
+            <option value="longitude">Longitude</option>
+            <option value="timestamp">Timestamp</option>
+            <option value="speed">Vitesse</option>
+            <option value="direction">Direction</option>
+            <option value="ignore">Ignorer</option>
+          </select>
+        </div>
+
+        <div class="column-item">
+          <label for="col-4">Colonne 4:</label>
+          <select id="col-4" class="select-input">
+            <option value="">Sélectionner</option>
+            <option value="taxi_id">ID Taxi</option>
+            <option value="latitude">Latitude</option>
+            <option value="longitude">Longitude</option>
+            <option value="timestamp">Timestamp</option>
+            <option value="speed">Vitesse</option>
+            <option value="direction">Direction</option>
+            <option value="ignore">Ignorer</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Options supplémentaires -->
+      <div class="options">
+        <label>
+          <input type="checkbox" id="has-header">
+          La première ligne est une en-tête
+        </label>
+        
+        <label for="separator">Séparateur de colonnes:</label>
+        <select id="separator" class="select-input">
+          <option value=",">Virgule (,)</option>
+          <option value=";">Point-virgule (;)</option>
+          <option value="\t">Tabulation</option>
+          <option value=" ">Espace</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Aperçu du format sélectionné -->
+    <div class="format-preview">
+      <h3>Aperçu:</h3>
+      <p>taxi_id, latitude, longitude, timestamp</p>
+    </div>
+  </section>
+
+  <!-- Section 3: Métadonnées -->
+  <section class="upload-section">
+    <h2>3. Informations sur le dataset</h2>
+    
+    <div class="form-group">
+      <label for="dataset-name">Nom du dataset:</label>
+      <input 
+        type="text" 
+        id="dataset-name"
+        placeholder="Ex: Taxi Beijing 2020"
+        class="text-input"
+      >
+    </div>
+
+    <div class="form-group">
+      <label for="dataset-description">Description:</label>
+      <textarea 
+        id="dataset-description"
+        placeholder="Décrivez vos données..."
+        class="textarea-input"
+      ></textarea>
+    </div>
+
+    <div class="form-group">
+      <label for="geo-location">Zone géographique (optionnel):</label>
+      <input 
+        type="text" 
+        id="geo-location"
+        placeholder="Ex: Beijing, China"
+        class="text-input"
+      >
+    </div>
+  </section>
+
+  <!-- Section 4: Validation -->
+  <section class="upload-section">
+    <h2>4. Valider et importer</h2>
+    
+    <div class="validation-checklist">
+      <div class="check-item">
+        <input type="checkbox" id="check-file" disabled>
+        <label for="check-file">Fichier sélectionné ✅</label>
+      </div>
+      <div class="check-item">
+        <input type="checkbox" id="check-format" disabled>
+        <label for="check-format">Format défini ✅</label>
+      </div>
+      <div class="check-item">
+        <input type="checkbox" id="check-metadata" disabled>
+        <label for="check-metadata">Métadonnées complètes ✅</label>
+      </div>
+    </div>
+
+    <div class="action-buttons">
+      <button class="btn-secondary">
+        Annuler
+      </button>
+      <button class="btn-primary" disabled>
+        Importer les données
+      </button>
+    </div>
+  </section>
+
+  <!-- Barre de progression -->
+  <div class="progress-section">
+    <h3>Import en cours...</h3>
+    <div class="progress-bar">
+      <div class="progress-fill" style="width: 0%"></div>
+    </div>
+    <p>0%</p>
+  </div>
+
+  <!-- Message de succès/erreur -->
+  <div class="alert alert-success">
+    Import réussi! 🎉
+  </div>
+</div>
