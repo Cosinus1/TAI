@@ -1,0 +1,42 @@
+{
+  "$schema": "../../config/schemas/dataset_import_config.schema.json",
+  "dataset_name": "Paris Bike Share Traces",
+  "description": "Velib bike sharing GPS traces from Paris, France. Collected from bike-sharing stations and individual bike GPS units.",
+  "dataset_type": "gps_trace",
+  "data_format": "csv",
+  "entity_type": "bike",
+  "geographic_scope": "Paris, France",
+  "source_type": "file",
+  "source_path": "data/paris_bikes.csv",
+  
+  "field_mapping": {
+    "entity_id": "bike_id",
+    "timestamp": "datetime",
+    "longitude": "lon",
+    "latitude": "lat",
+    "speed": "speed_kmh",
+    "heading": "bearing"
+  },
+  
+  "validation": {
+    "strict_mode": true,
+    "coordinate_bounds": [2.22, 48.81, 2.47, 48.90],
+    "speed_threshold": 30,
+    "timestamp_format": "%Y-%m-%d %H:%M:%S",
+    "timezone": "Europe/Paris"
+  },
+  
+  "file_format": "csv",
+  "delimiter": ",",
+  "skip_header": true,
+  "encoding": "utf-8",
+  
+  "batch_size": 1000,
+  
+  "preprocessing": {
+    "remove_duplicates": true,
+    "interpolate_gaps": false,
+    "filter_outliers": true,
+    "minimum_points": 5
+  }
+}

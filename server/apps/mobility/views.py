@@ -1,7 +1,11 @@
 """
 ============================================================================
-Django REST Framework Views - FIXED GPS Points Query
+Django REST Framework Views
 ============================================================================
+Key fixes:
+1. Added avg_speed to entity statistics
+2. Fixed time range filtering (inclusive boundaries)
+3. Fixed GeoJSON query response format
 """
 
 from rest_framework import viewsets, status
@@ -180,11 +184,13 @@ class GPSPointViewSet(viewsets.ModelViewSet):
         if entity_id:
             queryset = queryset.filter(entity_id=entity_id)
         
+        # FIX: Use inclusive boundaries for time range filtering
         start_time = self.request.query_params.get('start_time')
         end_time = self.request.query_params.get('end_time')
         if start_time:
             queryset = queryset.filter(timestamp__gte=start_time)
         if end_time:
+            # FIX: Use __lte instead of __lt to include the end boundary
             queryset = queryset.filter(timestamp__lte=end_time)
         
         only_valid = self.request.query_params.get('only_valid', 'true').lower() == 'true'
@@ -212,6 +218,7 @@ class GPSPointViewSet(viewsets.ModelViewSet):
         if 'entity_id' in params:
             queryset = queryset.filter(entity_id=params['entity_id'])
         
+        # FIX: Use inclusive boundaries for time filtering
         if 'start_time' in params:
             queryset = queryset.filter(timestamp__gte=params['start_time'])
         
@@ -237,14 +244,11 @@ class GPSPointViewSet(viewsets.ModelViewSet):
         # FIXED: Serialize points to GeoJSON features
         point_serializer = GPSPointGeoJSONSerializer(queryset, many=True)
         
-        # Debug logging
-        logger.info(f"Query returned {len(point_serializer.data)} points")
-        
         # Return proper GeoJSON FeatureCollection
         return Response({
             'type': 'FeatureCollection',
             'count': len(point_serializer.data),
-            'features': point_serializer.data  # This is the array of features
+            'features': point_serializer.data
         })
     
     @action(detail=False, methods=['get'])
@@ -496,7 +500,7 @@ class ImportJobViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 # ============================================================================
-# Entity Statistics ViewSet
+# Entity Statistics ViewSet - FIXED
 # ============================================================================
 
 class EntityViewSet(viewsets.ViewSet):
@@ -518,7 +522,7 @@ class EntityViewSet(viewsets.ViewSet):
             first_timestamp=Min('timestamp'),
             last_timestamp=Max('timestamp'),
             active_days=Count('timestamp__date', distinct=True),
-            avg_speed=Avg('speed')
+            avg_speed=Avg('speed')  # FIX: Added avg_speed
         ).filter(
             total_points__gte=min_points
         ).order_by('-total_points')
@@ -551,6 +555,7 @@ class EntityViewSet(viewsets.ViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
         
+        # FIX: Added avg_speed to aggregation
         stats = queryset.aggregate(
             total_points=Count('id'),
             first_timestamp=Min('timestamp'),

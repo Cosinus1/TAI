@@ -1,0 +1,55 @@
+{
+  "$schema": "../../config/schemas/dataset_import_config.schema.json",
+  "dataset_name": "NYC Yellow Cabs Real-time",
+  "description": "Real-time GPS data from NYC Yellow Cabs via TLC API. Includes pickup/dropoff locations and trip metadata.",
+  "dataset_type": "gps_trace",
+  "data_format": "api",
+  "entity_type": "taxi",
+  "geographic_scope": "New York City, USA",
+  "source_type": "api",
+  "source_path": "https://api.nyc.gov/taxi/locations/v1/data",
+  
+  "field_mapping": {
+    "entity_id": "medallion",
+    "timestamp": "pickup_datetime",
+    "longitude": "pickup_longitude",
+    "latitude": "pickup_latitude",
+    "speed": "avg_speed"
+  },
+  
+  "validation": {
+    "strict_mode": false,
+    "coordinate_bounds": [-74.05, 40.63, -73.75, 40.85],
+    "speed_threshold": 120,
+    "timestamp_format": "%Y-%m-%dT%H:%M:%S",
+    "timezone": "America/New_York"
+  },
+  
+  "api_config": {
+    "method": "GET",
+    "headers": {
+      "Accept": "application/json",
+      "User-Agent": "UrbanMobilityAnalysis/1.0"
+    },
+    "auth": {
+      "type": "api_key",
+      "credentials": {
+        "header": "X-API-Key",
+        "key": "${NYC_API_KEY}"
+      }
+    },
+    "pagination": {
+      "type": "offset",
+      "page_size": 1000
+    }
+  },
+  
+  "batch_size": 500,
+  
+  "preprocessing": {
+    "remove_duplicates": true,
+    "interpolate_gaps": false,
+    "filter_outliers": true,
+    "minimum_points": 3
+  }
+}
