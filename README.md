@@ -4,6 +4,5 @@ Le projet est une application web permettant de visualiser sur une carte des ana
 
 Front : Angular 
 Back : Django
-DB : Postgres ou MongoDB (encore à choisir)
-
+DB : Postgres
 type de données : gps, point d'interêt (POI), Origine-Destination (OD)
