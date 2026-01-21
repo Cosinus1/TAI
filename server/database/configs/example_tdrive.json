@@ -1,0 +1,41 @@
+{
+  "$schema": "../../config/schemas/dataset_import_config.schema.json",
+  "dataset_name": "T-Drive Beijing Taxi Dataset",
+  "description": "Microsoft T-Drive taxi trajectories from Beijing, China. GPS traces collected from 10,357 taxis during a period of one week in Beijing, China.",
+  "dataset_type": "gps_trace",
+  "data_format": "txt",
+  "entity_type": "taxi",
+  "geographic_scope": "Beijing, China",
+  "source_type": "directory",
+  "source_path": "data/tdrive/",
+  
+  "field_mapping": {
+    "entity_id": "taxi_id",
+    "timestamp": "timestamp",
+    "longitude": "longitude",
+    "latitude": "latitude"
+  },
+  
+  "validation": {
+    "strict_mode": false,
+    "coordinate_bounds": [116.25, 39.80, 116.60, 40.05],
+    "speed_threshold": 150,
+    "timestamp_format": "%Y-%m-%d %H:%M:%S",
+    "timezone": "Asia/Shanghai"
+  },
+  
+  "file_format": "txt",
+  "delimiter": ",",
+  "skip_header": false,
+  "encoding": "utf-8",
+  
+  "max_files": 10,
+  "batch_size": 1000,
+  
+  "preprocessing": {
+    "remove_duplicates": true,
+    "interpolate_gaps": false,
+    "filter_outliers": true,
+    "minimum_points": 10
+  }
+}

@@ -1,36 +1,253 @@
 {
-  "test_gps_traces": [
+  "test_datasets": [
     {
-      "user_id": 1,
-      "timestamp": "2024-01-15T08:30:00Z",
-      "latitude": 48.8566,
+      "name": "Test Beijing Taxi Dataset",
+      "description": "Small test dataset for unit testing",
+      "dataset_type": "gps_trace",
+      "data_format": "txt",
+      "entity_type": "taxi",
+      "geographic_scope": "Beijing, China",
+      "field_mapping": {
+        "entity_id": "taxi_id",
+        "timestamp": "timestamp",
+        "longitude": "longitude",
+        "latitude": "latitude"
+      }
+    },
+    {
+      "name": "Test Paris Bike Dataset",
+      "description": "Small bike sharing test dataset",
+      "dataset_type": "gps_trace",
+      "data_format": "csv",
+      "entity_type": "bike",
+      "geographic_scope": "Paris, France",
+      "field_mapping": {
+        "entity_id": "bike_id",
+        "timestamp": "datetime",
+        "longitude": "lon",
+        "latitude": "lat"
+      }
+    }
+  ],
+  
+  "test_gps_points": [
+    {
+      "entity_id": "taxi_1",
+      "timestamp": "2024-01-15T08:00:00Z",
+      "longitude": 116.40734,
+      "latitude": 39.90469,
+      "altitude": 50.0,
+      "speed": 25.5,
+      "heading": 90.0,
+      "accuracy": 5.0
+    },
+    {
+      "entity_id": "taxi_1",
+      "timestamp": "2024-01-15T08:05:00Z",
+      "longitude": 116.41234,
+      "latitude": 39.90569,
+      "altitude": 52.0,
+      "speed": 30.2,
+      "heading": 95.0,
+      "accuracy": 5.0
+    },
+    {
+      "entity_id": "taxi_1",
+      "timestamp": "2024-01-15T08:10:00Z",
+      "longitude": 116.41734,
+      "latitude": 39.90669,
+      "altitude": 51.0,
+      "speed": 28.7,
+      "heading": 92.0,
+      "accuracy": 6.0
+    },
+    {
+      "entity_id": "taxi_2",
+      "timestamp": "2024-01-15T08:00:00Z",
+      "longitude": 116.38734,
+      "latitude": 39.92469,
+      "altitude": 48.0,
+      "speed": 15.3,
+      "heading": 180.0,
+      "accuracy": 7.0
+    },
+    {
+      "entity_id": "taxi_2",
+      "timestamp": "2024-01-15T08:05:00Z",
+      "longitude": 116.38834,
+      "latitude": 39.92269,
+      "altitude": 49.0,
+      "speed": 18.9,
+      "heading": 175.0,
+      "accuracy": 6.0
+    },
+    {
+      "entity_id": "bike_100",
+      "timestamp": "2024-01-15T09:00:00Z",
       "longitude": 2.3522,
+      "latitude": 48.8566,
       "altitude": 35.0,
-      "speed": 5.2,
+      "speed": 12.5,
+      "heading": 45.0,
       "accuracy": 10.0
+    },
+    {
+      "entity_id": "bike_100",
+      "timestamp": "2024-01-15T09:05:00Z",
+      "longitude": 2.3532,
+      "latitude": 48.8576,
+      "altitude": 36.0,
+      "speed": 14.2,
+      "heading": 50.0,
+      "accuracy": 9.0
     }
   ],
-  "test_pois": [
+  
+  "test_trajectories": [
     {
-      "name": "Test POI",
-      "category": "test",
-      "latitude": 48.8566,
-      "longitude": 2.3522,
-      "address": "Test Address"
+      "entity_id": "taxi_1",
+      "trajectory_date": "2024-01-15",
+      "start_time": "2024-01-15T08:00:00Z",
+      "end_time": "2024-01-15T08:10:00Z",
+      "point_count": 3,
+      "total_distance_meters": 850.5,
+      "duration_seconds": 600,
+      "avg_speed_kmh": 28.0,
+      "max_speed_kmh": 30.2
+    },
+    {
+      "entity_id": "taxi_2",
+      "trajectory_date": "2024-01-15",
+      "start_time": "2024-01-15T08:00:00Z",
+      "end_time": "2024-01-15T08:05:00Z",
+      "point_count": 2,
+      "total_distance_meters": 425.3,
+      "duration_seconds": 300,
+      "avg_speed_kmh": 17.1,
+      "max_speed_kmh": 18.9
     }
   ],
-  "test_od_data": [
+  
+  "test_import_jobs": [
     {
-      "user_id": 1,
-      "origin_latitude": 48.8566,
-      "origin_longitude": 2.3522,
-      "destination_latitude": 48.8584,
-      "destination_longitude": 2.2945,
-      "start_time": "2024-01-15T08:30:00Z",
-      "end_time": "2024-01-15T09:00:00Z",
-      "distance_meters": 4500,
-      "duration_seconds": 1800,
-      "transport_mode": "walking"
+      "source_type": "file",
+      "source_path": "/test/data/taxi_1.txt",
+      "status": "completed",
+      "total_records": 100,
+      "successful_records": 95,
+      "failed_records": 5
+    },
+    {
+      "source_type": "directory",
+      "source_path": "/test/data/bikes/",
+      "status": "processing",
+      "total_records": 1000,
+      "processed_records": 500,
+      "successful_records": 480,
+      "failed_records": 20
     }
-  ]
+  ],
+  
+  "test_validation_errors": [
+    {
+      "error_type": "COORDINATE_ERROR",
+      "error_message": "Longitude out of range: 190.5",
+      "record_number": 42,
+      "raw_data": "taxi_1,2024-01-15 08:00:00,190.5,39.90469",
+      "field_name": "longitude",
+      "expected_value": "-180 to 180",
+      "actual_value": "190.5"
+    },
+    {
+      "error_type": "TIMESTAMP_ERROR",
+      "error_message": "Invalid timestamp format",
+      "record_number": 85,
+      "raw_data": "taxi_2,15-01-2024,116.40734,39.90469",
+      "field_name": "timestamp",
+      "expected_value": "YYYY-MM-DD HH:MM:SS",
+      "actual_value": "15-01-2024"
+    },
+    {
+      "error_type": "VALIDATION_ERROR",
+      "error_message": "Latitude outside Beijing bbox",
+      "record_number": 123,
+      "raw_data": "taxi_3,2024-01-15 08:00:00,116.40734,35.90469",
+      "field_name": "latitude",
+      "expected_value": "39.80 to 40.05",
+      "actual_value": "35.90469"
+    }
+  ],
+  
+  "test_raw_files": {
+    "tdrive_format": [
+      "1,2024-01-15 08:00:00,116.40734,39.90469",
+      "1,2024-01-15 08:05:00,116.41234,39.90569",
+      "1,2024-01-15 08:10:00,116.41734,39.90669",
+      "2,2024-01-15 08:00:00,116.38734,39.92469",
+      "2,2024-01-15 08:05:00,116.38834,39.92269"
+    ],
+    "csv_format_header": "bike_id,datetime,lon,lat,speed_kmh,bearing",
+    "csv_format_data": [
+      "100,2024-01-15 09:00:00,2.3522,48.8566,12.5,45.0",
+      "100,2024-01-15 09:05:00,2.3532,48.8576,14.2,50.0",
+      "101,2024-01-15 09:00:00,2.3422,48.8466,10.3,30.0",
+      "101,2024-01-15 09:05:00,2.3432,48.8476,11.8,35.0"
+    ],
+    "invalid_data": [
+      "1,invalid-date,116.40734,39.90469",
+      "2,2024-01-15 08:00:00,999.0,39.90469",
+      "3,2024-01-15 08:00:00,116.40734,-999.0",
+      "incomplete,data"
+    ]
+  },
+  
+  "test_query_parameters": {
+    "bbox_beijing": {
+      "min_lon": 116.25,
+      "min_lat": 39.80,
+      "max_lon": 116.60,
+      "max_lat": 40.05
+    },
+    "bbox_paris": {
+      "min_lon": 2.22,
+      "min_lat": 48.81,
+      "max_lon": 2.47,
+      "max_lat": 48.90
+    },
+    "time_range_morning": {
+      "start_time": "2024-01-15T08:00:00Z",
+      "end_time": "2024-01-15T12:00:00Z"
+    },
+    "time_range_afternoon": {
+      "start_time": "2024-01-15T13:00:00Z",
+      "end_time": "2024-01-15T18:00:00Z"
+    }
+  },
+  
+  "test_statistics": {
+    "expected_dataset_stats": {
+      "total_points": 7,
+      "total_entities": 3,
+      "valid_points": 7,
+      "invalid_points": 0,
+      "validity_rate": 100.0
+    },
+    "expected_entity_stats": {
+      "taxi_1": {
+        "total_points": 3,
+        "active_days": 1,
+        "avg_speed_kmh": 28.13
+      },
+      "taxi_2": {
+        "total_points": 2,
+        "active_days": 1,
+        "avg_speed_kmh": 17.1
+      },
+      "bike_100": {
+        "total_points": 2,
+        "active_days": 1,
+        "avg_speed_kmh": 13.35
+      }
+    }
+  }
 }
