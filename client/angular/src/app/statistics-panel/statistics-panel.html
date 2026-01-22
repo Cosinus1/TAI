@@ -1,0 +1,137 @@
+<!-- client/angular/src/app/statistics-panel/statistics-panel.html -->
+<div class="statistics-panel">
+  <h3>📊 Dataset Statistics</h3>
+  
+  @if (loading()) {
+    <div class="loading">Loading statistics...</div>
+  }
+  
+  @if (error()) {
+    <div class="error">{{ error() }}</div>
+  }
+  
+  @if (statistics(); as stats) {
+    <div class="stats-content">
+      <!-- Overview Section -->
+      <section class="stats-section">
+        <h4>Overview</h4>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <span class="stat-label">Dataset</span>
+            <span class="stat-value">{{ stats.dataset_name }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Total Points</span>
+            <span class="stat-value">{{ formatNumber(stats.total_points) }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Total Entities</span>
+            <span class="stat-value">{{ formatNumber(stats.total_entities) }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Avg Speed</span>
+            <span class="stat-value">{{ stats.avg_speed ? stats.avg_speed + ' km/h' : 'N/A' }}</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Time Range Section -->
+      <section class="stats-section">
+        <h4>Time Range</h4>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <span class="stat-label">Start</span>
+            <span class="stat-value small">{{ formatDate(stats.date_range?.start) }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">End</span>
+            <span class="stat-value small">{{ formatDate(stats.date_range?.end) }}</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Data Quality Section -->
+      <section class="stats-section">
+        <h4>Data Quality</h4>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <span class="stat-label">Valid Points</span>
+            <span class="stat-value success">{{ formatNumber(stats.valid_points) }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Invalid Points</span>
+            <span class="stat-value error">{{ formatNumber(stats.invalid_points) }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Validity Rate</span>
+            <span class="stat-value">{{ stats.validity_rate }}%</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Entity Type Breakdown Section -->
+      @if (stats.entity_type_breakdown && getEntityTypeKeys().length > 0) {
+        <section class="stats-section">
+          <h4>Entity Types</h4>
+          <div class="entity-types">
+            @for (type of getEntityTypeKeys(); track type) {
+              <div class="entity-type-card" [style.border-left-color]="getEntityTypeColor(type)">
+                <div class="entity-type-header">
+                  <span class="entity-type-icon" [style.background-color]="getEntityTypeColor(type)">
+                    {{ type === 'bus' ? '🚌' : type === 'bike' ? '🚲' : type === 'car' ? '🚗' : '🚕' }}
+                  </span>
+                  <span class="entity-type-name">{{ type | titlecase }}</span>
+                </div>
+                <div class="entity-type-stats">
+                  <div class="mini-stat">
+                    <span class="mini-label">Entities</span>
+                    <span class="mini-value">{{ stats.entity_type_breakdown![type].entity_count }}</span>
+                  </div>
+                  <div class="mini-stat">
+                    <span class="mini-label">Points</span>
+                    <span class="mini-value">{{ formatNumber(stats.entity_type_breakdown![type].point_count) }}</span>
+                  </div>
+                  <div class="mini-stat">
+                    <span class="mini-label">Avg Speed</span>
+                    <span class="mini-value">{{ stats.entity_type_breakdown![type].avg_speed }} km/h</span>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        </section>
+      }
+
+      <!-- Geographic Bounds Section -->
+      @if (stats.geographic_bounds) {
+        <section class="stats-section">
+          <h4>Geographic Bounds</h4>
+          <div class="stats-grid small-text">
+            <div class="stat-item">
+              <span class="stat-label">Min Lat</span>
+              <span class="stat-value">{{ stats.geographic_bounds.min_lat?.toFixed(4) }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Max Lat</span>
+              <span class="stat-value">{{ stats.geographic_bounds.max_lat?.toFixed(4) }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Min Lon</span>
+              <span class="stat-value">{{ stats.geographic_bounds.min_lon?.toFixed(4) }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Max Lon</span>
+              <span class="stat-value">{{ stats.geographic_bounds.max_lon?.toFixed(4) }}</span>
+            </div>
+          </div>
+        </section>
+      }
+    </div>
+  }
+  
+  @if (!statistics() && !loading() && !error()) {
+    <div class="no-data">
+      Select a dataset to view statistics
+    </div>
+  }
+</div>

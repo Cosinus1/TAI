@@ -1,0 +1,54 @@
+<!-- client/angular/src/app/dataset-selector/dataset-selector.html -->
+<div class="dataset-selector">
+  <label for="dataset-select">📂 Dataset</label>
+  
+  <div class="selector-row">
+    <select 
+      id="dataset-select"
+      [value]="selectedDataset()?.id || ''"
+      (change)="onDatasetChange($event)"
+      [disabled]="loading()">
+      
+      @if (loading()) {
+        <option value="">Loading...</option>
+      } @else if (datasets().length === 0) {
+        <option value="">No datasets available</option>
+      } @else {
+        <option value="">Select a dataset</option>
+        @for (dataset of datasets(); track dataset.id) {
+          <option [value]="dataset.id">
+            {{ getDatasetIcon(dataset) }} {{ dataset.name }}
+          </option>
+        }
+      }
+    </select>
+    
+    <button 
+      type="button" 
+      class="btn-refresh"
+      (click)="refresh()"
+      [disabled]="loading()"
+      title="Refresh datasets">
+      🔄
+    </button>
+  </div>
+
+  @if (error()) {
+    <div class="error-message">{{ error() }}</div>
+  }
+
+  @if (selectedDataset(); as dataset) {
+    <div class="dataset-info">
+      <span class="info-item">
+        <span class="info-label">Type:</span>
+        <span class="info-value">{{ dataset.dataset_type }}</span>
+      </span>
+      @if (dataset.geographic_scope) {
+        <span class="info-item">
+          <span class="info-label">Region:</span>
+          <span class="info-value">{{ dataset.geographic_scope }}</span>
+        </span>
+      }
+    </div>
+  }
+</div>

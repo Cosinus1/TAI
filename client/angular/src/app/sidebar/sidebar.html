@@ -1,38 +1,76 @@
+<!-- client/angular/src/app/sidebar/sidebar.html -->
 <div class="side-bar">
+  <!-- Dataset Selector - Always visible in GPS mode -->
+  @if (mode() === 'gps') {
+    <app-dataset-selector
+      (datasetSelected)="onDatasetSelected($event)">
+    </app-dataset-selector>
+  }
+
+  <!-- Mode-specific content -->
   @if (mode() === 'od') {
     <h3>OD</h3>
     <div>
       <label for="od-select">Sélectionner une OD :</label>
       <select id="od-select" (change)="emitOdChange($event)">
-        <!-- Option spéciale pour afficher toutes les paires -->
         <option value="">Tous les OD</option>
-      @for (pair of odPairs; track $index) {
-        <option [value]="$index">
-        {{ pair.origin.name }} → {{ pair.destination.name }}
-        </option>
-      }
+        @for (pair of odPairs; track $index) {
+          <option [value]="$index">
+            {{ pair.origin.name }} → {{ pair.destination.name }}
+          </option>
+        }
       </select>
     </div>
     <p>Sélectionnez une paire OD pour l'afficher sur la carte.</p>
     <button type="button" (click)="onApply()">Appliquer</button>
     <button type="button" (click)="onReset()">Réinitialiser</button>
-
   }
+  
   @else if (mode() === 'gps') {
-    <h3>GPS</h3>
-    <div>
-      <label for="taxi-select">Sélectionner un taxi :</label>
-      <select id="taxi-select" (change)="emitTaxiChange($event)">
-        <option value="">Tous les taxis</option>
-        @for (entity of entities; track $index) {
+    <!-- Filter Panel -->
+    <app-filter-panel
+      [datasetId]="currentDataset()?.id || null"
+      (filterChange)="onFilterChange($event)"
+      (applyFilters)="onApplyFilters()"
+      (resetFilters)="onResetFilters()">
+    </app-filter-panel>
+
+    <!-- Entity Selector -->
+    <div class="entity-selector">
+      <label for="entity-select">Select Entity:</label>
+      <select id="entity-select" (change)="emitTaxiChange($event)">
+        <option value="">All Entities</option>
+        @for (entity of getFilteredEntities(); track $index) {
           <option [value]="entity.entity_id">
-            Entity {{ entity.entity_id }} ({{ entity.avg_points_per_day }} pts/jour)
+            {{ entity.entity_id }} ({{ entity.avg_points_per_day | number:'1.0-0' }} pts/day)
           </option>
         }
       </select>
     </div>
-  } 
+
+    <!-- Statistics Toggle Button -->
+    <div class="stats-toggle">
+      <button type="button" (click)="toggleStats()">
+        {{ showStats() ? '📊 Hide Statistics' : '📊 Show Statistics' }}
+      </button>
+    </div>
+
+    <!-- Statistics Panel -->
+    @if (showStats() && currentDataset()) {
+      <app-statistics-panel
+        [datasetId]="currentDataset()?.id || null">
+      </app-statistics-panel>
+    }
+  }
+  
   @else {
-    <p>Mode normal</p>
+    <div class="mode-info">
+      <h3>Welcome</h3>
+      <p>Select a mode from the top bar to begin:</p>
+      <ul>
+        <li><strong>OD Mode</strong>: View Origin-Destination pairs</li>
+        <li><strong>GPS Mode</strong>: Explore GPS traces and statistics</li>
+      </ul>
+    </div>
   }
 </div>

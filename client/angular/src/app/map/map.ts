@@ -7,6 +7,7 @@ import { GpsLayer } from '../gps-layer/gps-layer';
 
 @Component({
   selector: 'app-map',
+  standalone: true,
   imports: [OdLayer, GpsLayer],
   templateUrl: './map.html',
   styleUrl: './map.scss',
@@ -24,6 +25,16 @@ export class Map implements AfterViewInit {
   
   // Optional: Dataset ID to filter data
   @Input() datasetId?: string;
+
+  // Filter inputs
+  @Input() entityTypeFilter?: string | null = null;
+  @Input() minSpeedFilter?: number | null = null;
+  @Input() maxSpeedFilter?: number | null = null;
+
+  // Map center configuration
+  @Input() centerLat: number = 48.8566; // Paris by default
+  @Input() centerLng: number = 2.3522;
+  @Input() initialZoom: number = 12;
   
   @ViewChild('mapContainer', { static: true }) 
   private mapContainer!: ElementRef<HTMLDivElement>;
@@ -32,10 +43,9 @@ export class Map implements AfterViewInit {
 
   // --- Initialisation de la carte ---
   ngAfterViewInit(): void {
-    // Center on Beijing for T-Drive data (can be made configurable)
     const m = L.map(this.mapContainer.nativeElement, {
-      center: [39.9042, 116.4074], // Beijing coordinates
-      zoom: 11,
+      center: [this.centerLat, this.centerLng],
+      zoom: this.initialZoom,
     });
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -53,5 +63,33 @@ export class Map implements AfterViewInit {
     }, 200);
     
     this.map.set(m);
+  }
+
+  /**
+   * Center the map on specific coordinates
+   */
+  centerOn(lat: number, lng: number, zoom?: number): void {
+    const m = this.map();
+    if (m) {
+      if (zoom !== undefined) {
+        m.setView([lat, lng], zoom);
+      } else {
+        m.setView([lat, lng]);
+      }
+    }
+  }
+
+  /**
+   * Center on Paris
+   */
+  centerOnParis(): void {
+    this.centerOn(48.8566, 2.3522, 12);
+  }
+
+  /**
+   * Center on Beijing
+   */
+  centerOnBeijing(): void {
+    this.centerOn(39.9042, 116.4074, 11);
   }
 }
