@@ -1,0 +1,111 @@
+<!-- client/angular/src/app/filter-panel/filter-panel.html -->
+<div class="filter-panel">
+  <h3>🔍 Filters</h3>
+
+  @if (loading()) {
+    <div class="loading">Loading filters...</div>
+  } @else {
+    <div class="filter-content">
+      <!-- Entity Type Filter -->
+      <div class="filter-group">
+        <label for="entity-type-select">Entity Type</label>
+        <select 
+          id="entity-type-select" 
+          [value]="selectedEntityType() || ''"
+          (change)="onEntityTypeChange($event)">
+          <option value="">All Types</option>
+          @for (type of entityTypes(); track type) {
+            <option [value]="type">
+              {{ getEntityTypeIcon(type) }} {{ type | titlecase }}
+            </option>
+          }
+        </select>
+      </div>
+
+      <!-- Speed Range Filter -->
+      <div class="filter-group">
+        <label>Speed Range (km/h)</label>
+        <div class="range-inputs">
+          <input 
+            type="number" 
+            placeholder="Min"
+            [value]="minSpeed()"
+            (change)="onMinSpeedChange($event)"
+            min="0"
+            step="5">
+          <span class="range-separator">to</span>
+          <input 
+            type="number" 
+            placeholder="Max"
+            [value]="maxSpeed()"
+            (change)="onMaxSpeedChange($event)"
+            min="0"
+            step="5">
+        </div>
+      </div>
+
+      <!-- Time Range Filter -->
+      <div class="filter-group">
+        <label>Time Range</label>
+        <div class="time-inputs">
+          <div class="time-input-wrapper">
+            <span class="time-label">From</span>
+            <input 
+              type="datetime-local"
+              [value]="startTime()"
+              (change)="onStartTimeChange($event)">
+          </div>
+          <div class="time-input-wrapper">
+            <span class="time-label">To</span>
+            <input 
+              type="datetime-local"
+              [value]="endTime()"
+              (change)="onEndTimeChange($event)">
+          </div>
+        </div>
+      </div>
+
+      <!-- Entity Type Legend -->
+      @if (entityTypes().length > 0) {
+        <div class="entity-legend">
+          <label>Legend</label>
+          <div class="legend-items">
+            @for (type of entityTypes(); track type) {
+              <div class="legend-item">
+                <span 
+                  class="legend-color" 
+                  [style.background-color]="getEntityTypeColor(type)">
+                </span>
+                <span class="legend-label">{{ getEntityTypeIcon(type) }} {{ type | titlecase }}</span>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- Action Buttons -->
+      <div class="filter-actions">
+        <button 
+          type="button" 
+          class="btn-apply"
+          (click)="onApply()">
+          Apply Filters
+        </button>
+        <button 
+          type="button" 
+          class="btn-reset"
+          [disabled]="!hasActiveFilters()"
+          (click)="onReset()">
+          Reset
+        </button>
+      </div>
+
+      <!-- Active Filters Indicator -->
+      @if (hasActiveFilters()) {
+        <div class="active-filters-badge">
+          <span class="badge">Filters Active</span>
+        </div>
+      }
+    </div>
+  }
+</div>

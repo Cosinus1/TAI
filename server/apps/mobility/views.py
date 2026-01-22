@@ -1,11 +1,7 @@
 """
 ============================================================================
-Django REST Framework Views
+Django REST Framework Views - Enhanced with Statistics and Filtering
 ============================================================================
-Key fixes:
-1. Added avg_speed to entity statistics
-2. Fixed time range filtering (inclusive boundaries)
-3. Fixed GeoJSON query response format
 """
 
 from rest_framework import viewsets, status
@@ -101,7 +97,8 @@ class DatasetViewSet(viewsets.ModelViewSet):
             first_timestamp=Min('timestamp'),
             last_timestamp=Max('timestamp'),
             valid_count=Count('id', filter=Q(is_valid=True)),
-            invalid_count=Count('id', filter=Q(is_valid=False))
+            invalid_count=Count('id', filter=Q(is_valid=False)),
+            avg_speed=Avg('speed')
         )
         
         trajectory_count = Trajectory.objects.filter(dataset=dataset).count()
@@ -116,16 +113,20 @@ class DatasetViewSet(viewsets.ModelViewSet):
             max_lat=Max('latitude')
         )
         
+        # Get entity type breakdown from extra_attributes
+        entity_type_stats = self._get_entity_type_stats(dataset)
+        
         total = point_stats['total_points']
         valid = point_stats['valid_count']
         validity_rate = round((valid / total * 100), 2) if total > 0 else 0.0
         
         return Response({
-            'dataset_id': dataset.id,
+            'dataset_id': str(dataset.id),
             'dataset_name': dataset.name,
             'total_points': total,
             'total_entities': point_stats['total_entities'],
             'total_trajectories': trajectory_count,
+            'avg_speed': round(point_stats['avg_speed'], 2) if point_stats['avg_speed'] else None,
             'date_range': {
                 'start': point_stats['first_timestamp'],
                 'end': point_stats['last_timestamp']
@@ -133,8 +134,55 @@ class DatasetViewSet(viewsets.ModelViewSet):
             'validity_rate': validity_rate,
             'valid_points': valid,
             'invalid_points': point_stats['invalid_count'],
-            'geographic_bounds': geo_bounds if all(geo_bounds.values()) else None
+            'geographic_bounds': geo_bounds if all(v is not None for v in geo_bounds.values()) else None,
+            'entity_type_breakdown': entity_type_stats
         })
+    
+    def _get_entity_type_stats(self, dataset):
+        """Get statistics broken down by entity type."""
+        # Query all points and extract entity_type from extra_attributes
+        points = GPSPoint.objects.filter(dataset=dataset, is_valid=True)
+        
+        entity_types = {}
+        entity_type_entities = {}
+        
+        for point in points.values('entity_id', 'extra_attributes', 'speed'):
+            entity_type = None
+            if point['extra_attributes']:
+                entity_type = point['extra_attributes'].get('entity_type', 'unknown')
+            else:
+                # Infer from entity_id prefix
+                entity_id = point['entity_id']
+                if entity_id.startswith('bus'):
+                    entity_type = 'bus'
+                elif entity_id.startswith('bike'):
+                    entity_type = 'bike'
+                elif entity_id.startswith('car'):
+                    entity_type = 'car'
+                else:
+                    entity_type = 'unknown'
+            
+            if entity_type not in entity_types:
+                entity_types[entity_type] = {
+                    'count': 0,
+                    'total_speed': 0,
+                    'entities': set()
+                }
+            
+            entity_types[entity_type]['count'] += 1
+            entity_types[entity_type]['total_speed'] += point['speed'] or 0
+            entity_types[entity_type]['entities'].add(point['entity_id'])
+        
+        # Format the result
+        result = {}
+        for entity_type, stats in entity_types.items():
+            result[entity_type] = {
+                'point_count': stats['count'],
+                'entity_count': len(stats['entities']),
+                'avg_speed': round(stats['total_speed'] / stats['count'], 2) if stats['count'] > 0 else 0
+            }
+        
+        return result
     
     @action(detail=True, methods=['post'])
     def deactivate(self, request, pk=None):
@@ -154,12 +202,12 @@ class DatasetViewSet(viewsets.ModelViewSet):
 
 
 # ============================================================================
-# GPS Points ViewSet - FIXED
+# GPS Points ViewSet - Enhanced with filtering
 # ============================================================================
 
 class GPSPointViewSet(viewsets.ModelViewSet):
     """
-    API endpoints for GPS point data.
+    API endpoints for GPS point data with enhanced filtering.
     """
     queryset = GPSPoint.objects.all()
     serializer_class = GPSPointGeoJSONSerializer
@@ -184,14 +232,29 @@ class GPSPointViewSet(viewsets.ModelViewSet):
         if entity_id:
             queryset = queryset.filter(entity_id=entity_id)
         
-        # FIX: Use inclusive boundaries for time range filtering
+        # Filter by entity type (from extra_attributes or entity_id prefix)
+        entity_type = self.request.query_params.get('entity_type')
+        if entity_type:
+            queryset = queryset.filter(
+                Q(extra_attributes__entity_type=entity_type) |
+                Q(entity_id__startswith=entity_type)
+            )
+        
+        # Time range filtering
         start_time = self.request.query_params.get('start_time')
         end_time = self.request.query_params.get('end_time')
         if start_time:
             queryset = queryset.filter(timestamp__gte=start_time)
         if end_time:
-            # FIX: Use __lte instead of __lt to include the end boundary
             queryset = queryset.filter(timestamp__lte=end_time)
+        
+        # Speed filtering
+        min_speed = self.request.query_params.get('min_speed')
+        max_speed = self.request.query_params.get('max_speed')
+        if min_speed:
+            queryset = queryset.filter(speed__gte=float(min_speed))
+        if max_speed:
+            queryset = queryset.filter(speed__lte=float(max_speed))
         
         only_valid = self.request.query_params.get('only_valid', 'true').lower() == 'true'
         if only_valid:
@@ -202,7 +265,7 @@ class GPSPointViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def query(self, request):
         """
-        FIXED: Advanced query endpoint with spatial filtering.
+        Advanced query endpoint with spatial filtering.
         Returns proper GeoJSON FeatureCollection.
         """
         serializer = GPSPointQuerySerializer(data=request.data)
@@ -218,7 +281,15 @@ class GPSPointViewSet(viewsets.ModelViewSet):
         if 'entity_id' in params:
             queryset = queryset.filter(entity_id=params['entity_id'])
         
-        # FIX: Use inclusive boundaries for time filtering
+        # Entity type filter
+        entity_type = request.data.get('entity_type')
+        if entity_type:
+            queryset = queryset.filter(
+                Q(extra_attributes__entity_type=entity_type) |
+                Q(entity_id__startswith=entity_type)
+            )
+        
+        # Time filtering
         if 'start_time' in params:
             queryset = queryset.filter(timestamp__gte=params['start_time'])
         
@@ -241,7 +312,7 @@ class GPSPointViewSet(viewsets.ModelViewSet):
         limit = params.get('limit', 1000)
         queryset = queryset[:limit]
         
-        # FIXED: Serialize points to GeoJSON features
+        # Serialize points to GeoJSON features
         point_serializer = GPSPointGeoJSONSerializer(queryset, many=True)
         
         # Return proper GeoJSON FeatureCollection
@@ -275,6 +346,30 @@ class GPSPointViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def entity_types(self, request):
+        """Get list of distinct entity types in a dataset."""
+        dataset_id = request.query_params.get('dataset')
+        
+        queryset = GPSPoint.objects.filter(is_valid=True)
+        if dataset_id:
+            queryset = queryset.filter(dataset_id=dataset_id)
+        
+        # Get distinct entity types
+        entity_types = set()
+        for point in queryset.values('entity_id', 'extra_attributes').distinct():
+            if point['extra_attributes'] and 'entity_type' in point['extra_attributes']:
+                entity_types.add(point['extra_attributes']['entity_type'])
+            else:
+                # Infer from entity_id prefix
+                entity_id = point['entity_id']
+                for prefix in ['bus', 'bike', 'car', 'taxi']:
+                    if entity_id.startswith(prefix):
+                        entity_types.add(prefix)
+                        break
+        
+        return Response(list(entity_types))
     
     @action(detail=False, methods=['post'])
     def bulk_create(self, request):
@@ -500,7 +595,7 @@ class ImportJobViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 # ============================================================================
-# Entity Statistics ViewSet - FIXED
+# Entity Statistics ViewSet - Enhanced
 # ============================================================================
 
 class EntityViewSet(viewsets.ViewSet):
@@ -510,11 +605,19 @@ class EntityViewSet(viewsets.ViewSet):
         """List all entities with summary statistics."""
         dataset_id = request.query_params.get('dataset')
         min_points = request.query_params.get('min_points', 0)
+        entity_type = request.query_params.get('entity_type')
         
         queryset = GPSPoint.objects.filter(is_valid=True)
         
         if dataset_id:
             queryset = queryset.filter(dataset_id=dataset_id)
+        
+        # Filter by entity type
+        if entity_type:
+            queryset = queryset.filter(
+                Q(extra_attributes__entity_type=entity_type) |
+                Q(entity_id__startswith=entity_type)
+            )
         
         # Aggregate by entity
         stats = queryset.values('entity_id').annotate(
@@ -522,23 +625,35 @@ class EntityViewSet(viewsets.ViewSet):
             first_timestamp=Min('timestamp'),
             last_timestamp=Max('timestamp'),
             active_days=Count('timestamp__date', distinct=True),
-            avg_speed=Avg('speed')  # FIX: Added avg_speed
+            avg_speed=Avg('speed')
         ).filter(
             total_points__gte=min_points
         ).order_by('-total_points')
         
-        # Calculate derived metrics
+        # Calculate derived metrics and add entity type
+        result = []
         for s in stats:
-            if s['active_days'] > 0:
-                s['avg_points_per_day'] = round(
-                    s['total_points'] / s['active_days'],
+            entity_data = dict(s)
+            if entity_data['active_days'] > 0:
+                entity_data['avg_points_per_day'] = round(
+                    entity_data['total_points'] / entity_data['active_days'],
                     2
                 )
             else:
-                s['avg_points_per_day'] = 0.0
+                entity_data['avg_points_per_day'] = 0.0
+            
+            # Determine entity type
+            entity_id = entity_data['entity_id']
+            for prefix in ['bus', 'bike', 'car', 'taxi']:
+                if entity_id.startswith(prefix):
+                    entity_data['entity_type'] = prefix
+                    break
+            else:
+                entity_data['entity_type'] = 'unknown'
+            
+            result.append(entity_data)
         
-        serializer = EntityStatisticsSerializer(stats, many=True)
-        return Response(serializer.data)
+        return Response(result)
     
     def retrieve(self, request, pk=None):
         """Get detailed statistics for a specific entity."""
@@ -555,13 +670,14 @@ class EntityViewSet(viewsets.ViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
         
-        # FIX: Added avg_speed to aggregation
         stats = queryset.aggregate(
             total_points=Count('id'),
             first_timestamp=Min('timestamp'),
             last_timestamp=Max('timestamp'),
             active_days=Count('timestamp__date', distinct=True),
-            avg_speed=Avg('speed')
+            avg_speed=Avg('speed'),
+            max_speed=Max('speed'),
+            min_speed=Min('speed')
         )
         
         stats['entity_id'] = pk
@@ -572,6 +688,14 @@ class EntityViewSet(viewsets.ViewSet):
             )
         else:
             stats['avg_points_per_day'] = 0.0
+        
+        # Determine entity type
+        for prefix in ['bus', 'bike', 'car', 'taxi']:
+            if pk.startswith(prefix):
+                stats['entity_type'] = prefix
+                break
+        else:
+            stats['entity_type'] = 'unknown'
         
         trajectory_stats = Trajectory.objects.filter(
             entity_id=pk
@@ -585,5 +709,4 @@ class EntityViewSet(viewsets.ViewSet):
         stats['total_distance_meters'] = trajectory_stats['total_distance']
         stats['avg_trajectory_distance'] = trajectory_stats['avg_distance']
         
-        serializer = EntityStatisticsSerializer(stats)
-        return Response(serializer.data)
+        return Response(stats)

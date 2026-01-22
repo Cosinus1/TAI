@@ -22,6 +22,29 @@ import {
 import { environment } from '../../environments/environment';
 
 /**
+ * Extended Dataset Statistics with entity type breakdown
+ */
+export interface ExtendedDatasetStatistics extends DatasetStatistics {
+  avg_speed?: number;
+  entity_type_breakdown?: {
+    [key: string]: {
+      point_count: number;
+      entity_count: number;
+      avg_speed: number;
+    };
+  };
+}
+
+/**
+ * Extended Entity Statistics with entity type
+ */
+export interface ExtendedEntityStatistics extends EntityStatistics {
+  entity_type?: string;
+  max_speed?: number;
+  min_speed?: number;
+}
+
+/**
  * Service for interacting with the refactored mobility API
  */
 @Injectable({
@@ -48,17 +71,14 @@ export class Gps {
       httpParams = httpParams.set('type', params.type);
     }
     
-    // FIXED: Handle paginated response
     return this.http.get<PaginatedResponse<Dataset> | Dataset[]>(
       `${this.apiUrl}/datasets/`, 
       { params: httpParams }
     ).pipe(
       map(response => {
-        // Check if response is paginated
         if (response && typeof response === 'object' && 'results' in response) {
           return (response as PaginatedResponse<Dataset>).results;
         }
-        // If not paginated, return as-is
         return response as Dataset[];
       })
     );
@@ -72,10 +92,10 @@ export class Gps {
   }
 
   /**
-   * Get statistics for a specific dataset
+   * Get statistics for a specific dataset (extended with entity type breakdown)
    */
-  getDatasetStatistics(id: string): Observable<DatasetStatistics> {
-    return this.http.get<DatasetStatistics>(`${this.apiUrl}/datasets/${id}/statistics/`);
+  getDatasetStatistics(id: string): Observable<ExtendedDatasetStatistics> {
+    return this.http.get<ExtendedDatasetStatistics>(`${this.apiUrl}/datasets/${id}/statistics/`);
   }
 
   /**
@@ -93,17 +113,20 @@ export class Gps {
   }
 
   // ============================================================================
-  // GPS Points
+  // GPS Points with Filtering
   // ============================================================================
 
   /**
-   * Get GPS points with pagination
+   * Get GPS points with pagination and filtering
    */
   getPoints(params?: {
     dataset?: string;
     entity_id?: string;
+    entity_type?: string;
     start_time?: string;
     end_time?: string;
+    min_speed?: number;
+    max_speed?: number;
     only_valid?: boolean;
     page?: number;
     page_size?: number;
@@ -112,8 +135,11 @@ export class Gps {
     
     if (params?.dataset) httpParams = httpParams.set('dataset', params.dataset);
     if (params?.entity_id) httpParams = httpParams.set('entity_id', params.entity_id);
+    if (params?.entity_type) httpParams = httpParams.set('entity_type', params.entity_type);
     if (params?.start_time) httpParams = httpParams.set('start_time', params.start_time);
     if (params?.end_time) httpParams = httpParams.set('end_time', params.end_time);
+    if (params?.min_speed !== undefined) httpParams = httpParams.set('min_speed', params.min_speed.toString());
+    if (params?.max_speed !== undefined) httpParams = httpParams.set('max_speed', params.max_speed.toString());
     if (params?.only_valid !== undefined) {
       httpParams = httpParams.set('only_valid', params.only_valid.toString());
     }
@@ -127,9 +153,9 @@ export class Gps {
   }
 
   /**
-   * Advanced query for GPS points with spatial filtering
+   * Advanced query for GPS points with spatial and entity type filtering
    */
-  queryPoints(query: GpsPointQuery): Observable<GeoJsonFeatureCollection> {
+  queryPoints(query: GpsPointQuery & { entity_type?: string }): Observable<GeoJsonFeatureCollection> {
     return this.http.post<GeoJsonFeatureCollection>(
       `${this.apiUrl}/points/query/`,
       query
@@ -137,18 +163,19 @@ export class Gps {
   }
 
   /**
-   * Get points in a bounding box
+   * Get points in a bounding box with optional entity type filter
    */
   getPointsInBbox(
     bbox: Bbox,
     options?: {
       dataset?: string;
       entity_id?: string;
+      entity_type?: string;
       limit?: number;
       only_valid?: boolean;
     }
   ): Observable<GeoJsonFeatureCollection> {
-    const query: GpsPointQuery = {
+    const query: GpsPointQuery & { entity_type?: string } = {
       min_lon: bbox.minLon,
       max_lon: bbox.maxLon,
       min_lat: bbox.minLat,
@@ -158,6 +185,10 @@ export class Gps {
       dataset: options?.dataset,
       entity_id: options?.entity_id,
     };
+    
+    if (options?.entity_type) {
+      query.entity_type = options.entity_type;
+    }
 
     return this.queryPoints(query);
   }
@@ -184,6 +215,20 @@ export class Gps {
 
     return this.http.get<PaginatedResponse<GpsPoint>>(
       `${this.apiUrl}/points/by_entity/`,
+      { params: httpParams }
+    );
+  }
+
+  /**
+   * Get list of entity types in a dataset
+   */
+  getEntityTypes(datasetId?: string): Observable<string[]> {
+    let httpParams = new HttpParams();
+    if (datasetId) {
+      httpParams = httpParams.set('dataset', datasetId);
+    }
+    return this.http.get<string[]>(
+      `${this.apiUrl}/points/entity_types/`,
       { params: httpParams }
     );
   }
@@ -308,22 +353,24 @@ export class Gps {
   }
 
   // ============================================================================
-  // Entity Statistics
+  // Entity Statistics with Entity Type Support
   // ============================================================================
 
   /**
-   * Get all entities with statistics
+   * Get all entities with statistics, optionally filtered by entity type
    */
   getEntities(params?: {
     dataset?: string;
     min_points?: number;
-  }): Observable<EntityStatistics[]> {
+    entity_type?: string;
+  }): Observable<ExtendedEntityStatistics[]> {
     let httpParams = new HttpParams();
     
     if (params?.dataset) httpParams = httpParams.set('dataset', params.dataset);
     if (params?.min_points) httpParams = httpParams.set('min_points', params.min_points.toString());
+    if (params?.entity_type) httpParams = httpParams.set('entity_type', params.entity_type);
 
-    return this.http.get<EntityStatistics[]>(
+    return this.http.get<ExtendedEntityStatistics[]>(
       `${this.apiUrl}/entities/`,
       { params: httpParams }
     );
@@ -332,13 +379,13 @@ export class Gps {
   /**
    * Get statistics for a specific entity
    */
-  getEntityStatistics(entityId: string, datasetId?: string): Observable<EntityStatistics> {
+  getEntityStatistics(entityId: string, datasetId?: string): Observable<ExtendedEntityStatistics> {
     let httpParams = new HttpParams();
     if (datasetId) {
       httpParams = httpParams.set('dataset', datasetId);
     }
 
-    return this.http.get<EntityStatistics>(
+    return this.http.get<ExtendedEntityStatistics>(
       `${this.apiUrl}/entities/${entityId}/`,
       { params: httpParams }
     );
@@ -350,7 +397,6 @@ export class Gps {
 
   /**
    * @deprecated Use getPointsByEntity() instead
-   * Get points by taxi ID for backward compatibility
    */
   getPointsByTaxi(
     taxiId: string,
@@ -369,14 +415,12 @@ export class Gps {
 
   /**
    * Get the default T-Drive dataset (for migration)
-   * FIXED: Handle both paginated and non-paginated responses
    */
   getTDriveDataset(): Observable<Dataset> {
     return this.getDatasets({ type: 'gps_trace' }).pipe(
       map(datasets => {
         console.log('[Gps] Datasets received:', datasets);
         
-        // datasets is now guaranteed to be an array
         const tdriveDataset = datasets.find(d => 
           d.name.toLowerCase().includes('t-drive') || 
           d.name.toLowerCase().includes('tdrive')
@@ -384,7 +428,7 @@ export class Gps {
         
         if (!tdriveDataset && datasets.length > 0) {
           console.log('[Gps] T-Drive dataset not found, using first dataset');
-          return datasets[0]; // Fallback to first dataset
+          return datasets[0];
         }
         
         if (!tdriveDataset) {
@@ -392,6 +436,25 @@ export class Gps {
         }
         
         return tdriveDataset;
+      })
+    );
+  }
+
+  /**
+   * Get the Paris test dataset
+   */
+  getParisTestDataset(): Observable<Dataset> {
+    return this.getDatasets({ type: 'gps_trace' }).pipe(
+      map(datasets => {
+        const parisDataset = datasets.find(d => 
+          d.name.toLowerCase().includes('paris')
+        );
+        
+        if (!parisDataset) {
+          throw new Error('Paris Test Dataset not found. Please run: python manage.py create_test_dataset');
+        }
+        
+        return parisDataset;
       })
     );
   }

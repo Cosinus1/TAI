@@ -1,3 +1,4 @@
+<!-- client/angular/src/app/map/map.html -->
 <div #mapContainer id="map" class="map-container"></div>
 
 @if (map(); as m) {
@@ -11,7 +12,8 @@
     [map]="m" 
     [selectedEntity]="selectedEntity"
     [datasetId]="datasetId"
+    [entityTypeFilter]="entityTypeFilter"
+    [minSpeedFilter]="minSpeedFilter"
+    [maxSpeedFilter]="maxSpeedFilter"
   />
 }
-
-

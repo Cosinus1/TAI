@@ -1,20 +1,33 @@
 // client/angular/src/app/gps-layer/gps-layer.ts
-import { Component, Input, inject, OnDestroy, effect } from '@angular/core';
+import { Component, Input, inject, OnDestroy, effect, OnChanges, SimpleChanges } from '@angular/core';
 import * as L from 'leaflet';
 import { Gps } from '../services/gps';
 import { Mode } from '../services/mode';
 import { Bbox, GeoJsonFeature } from '../interfaces/gps';
 
+// Entity type colors
+const ENTITY_COLORS: { [key: string]: string } = {
+  'bus': '#FF5722',
+  'bike': '#4CAF50',
+  'car': '#2196F3',
+  'taxi': '#FFC107',
+  'unknown': '#9E9E9E'
+};
+
 @Component({
   selector: 'app-gps-layer',
+  standalone: true,
   imports: [],
   templateUrl: './gps-layer.html',
   styleUrl: './gps-layer.scss',
 })
-export class GpsLayer implements OnDestroy {
+export class GpsLayer implements OnDestroy, OnChanges {
   @Input({ required: true }) map!: L.Map;
   @Input() selectedEntity: string | null = null;
-  @Input() datasetId?: string; // Optional: specify which dataset to use
+  @Input() datasetId?: string;
+  @Input() entityTypeFilter?: string | null = null;
+  @Input() minSpeedFilter?: number | null = null;
+  @Input() maxSpeedFilter?: number | null = null;
 
   private gps = inject(Gps);
   private mode = inject(Mode);
@@ -30,9 +43,6 @@ export class GpsLayer implements OnDestroy {
   };
 
   constructor() {
-    // Initialize dataset
-    this.initializeDataset();
-
     effect(() => {
       const currentMode = this.mode.mode();
       console.log('[GpsLayer] effect triggered, mode =', currentMode);
@@ -56,32 +66,16 @@ export class GpsLayer implements OnDestroy {
     });
   }
 
-  /**
-   * Initialize the dataset to use
-   */
-  private initializeDataset(): void {
-    // If dataset ID is provided, use it
-    if (this.datasetId) {
-      this.currentDatasetId = this.datasetId;
-      return;
-    }
-
-    // Otherwise, try to get the T-Drive dataset for backward compatibility
-    this.gps.getTDriveDataset().subscribe({
-      next: dataset => {
-        console.log('[GpsLayer] Using dataset:', dataset.name);
-        this.currentDatasetId = dataset.id;
-        
-        // Reload points if we're in GPS mode
-        if (this.mode.mode() === 'gps' && this.map) {
-          this.loadPointsInViewport();
-        }
-      },
-      error: err => {
-        console.error('[GpsLayer] Failed to get default dataset:', err);
-        // Continue without dataset filter - will show all points
+  ngOnChanges(changes: SimpleChanges): void {
+    // Reload when filters change
+    if (changes['entityTypeFilter'] || changes['minSpeedFilter'] || changes['maxSpeedFilter'] || changes['datasetId']) {
+      if (this.datasetId) {
+        this.currentDatasetId = this.datasetId;
       }
-    });
+      if (this.mode.mode() === 'gps' && this.map) {
+        this.loadPointsInViewport();
+      }
+    }
   }
 
   private loadPointsInViewport(limit = 1000) {
@@ -95,8 +89,6 @@ export class GpsLayer implements OnDestroy {
       }).subscribe({
         next: resp => {
           console.log('[GpsLayer] Response for entity:', resp);
-          
-          // FIXED: Handle paginated response
           const points = resp.results || [];
           const features = this.convertPointsToFeatures(points);
           console.log('[GpsLayer] features for entity', features.length);
@@ -107,7 +99,7 @@ export class GpsLayer implements OnDestroy {
       return;
     }
 
-    // Load points in bounding box
+    // Load points in bounding box with filters
     const b = this.map.getBounds();
     const bbox: Bbox = {
       minLon: b.getWest(),
@@ -116,31 +108,39 @@ export class GpsLayer implements OnDestroy {
       maxLat: b.getNorth(),
     };
 
-    console.log('[GpsLayer] request bbox', bbox);
+    console.log('[GpsLayer] request bbox', bbox, 'entityType:', this.entityTypeFilter);
 
     this.gps.getPointsInBbox(bbox, {
       dataset: this.currentDatasetId,
+      entity_type: this.entityTypeFilter || undefined,
       limit: limit,
       only_valid: true
     }).subscribe({
       next: resp => {
         console.log('[GpsLayer] raw response:', resp);
 
-        // FIXED: Safely extract features from response
         let features: GeoJsonFeature[] = [];
         
         if (resp && typeof resp === 'object') {
           if ('features' in resp && Array.isArray(resp.features)) {
-            // Standard GeoJSON FeatureCollection
             features = resp.features;
           } else if ('results' in resp && Array.isArray(resp.results)) {
-            // Paginated response with results array
             features = this.convertPointsToFeatures(resp.results);
           } else if (Array.isArray(resp)) {
-            // Direct array of features
             features = resp;
           }
         }
+        
+        // Apply client-side speed filtering if needed
+        /*if (this.minSpeedFilter !== null || this.maxSpeedFilter !== null) {
+          features = features.filter(f => {
+            const speed = f.properties?.speed;
+            if (speed === null || speed === undefined) return true;
+            if (this.minSpeedFilter !== null && speed < this.minSpeedFilter) return false;
+            if (this.maxSpeedFilter !== null && speed > this.maxSpeedFilter) return false;
+            return true;
+          });
+        }*/
         
         console.log('[GpsLayer] extracted features count:', features.length);
         
@@ -148,7 +148,6 @@ export class GpsLayer implements OnDestroy {
       },
       error: err => {
         console.error('[GpsLayer] Error loading bbox points:', err);
-        // Clear layer on error
         this.layer.clearLayers();
       },
     });
@@ -178,9 +177,37 @@ export class GpsLayer implements OnDestroy {
         is_valid: point.is_valid,
         speed: point.speed,
         heading: point.heading,
-        dataset_name: point.dataset_name
+        dataset_name: point.dataset_name,
+        extra_attributes: point.extra_attributes
       }
     }));
+  }
+
+  /**
+   * Get entity type from entity_id or extra_attributes
+   */
+  private getEntityType(props: any): string {
+    // Check extra_attributes first
+    if (props.extra_attributes?.entity_type) {
+      return props.extra_attributes.entity_type;
+    }
+    
+    // Infer from entity_id prefix
+    const entityId = props.entity_id || '';
+    for (const prefix of ['bus', 'bike', 'car', 'taxi']) {
+      if (entityId.startsWith(prefix)) {
+        return prefix;
+      }
+    }
+    
+    return 'unknown';
+  }
+
+  /**
+   * Get color for entity type
+   */
+  private getEntityColor(entityType: string): string {
+    return ENTITY_COLORS[entityType] || ENTITY_COLORS['unknown'];
   }
 
   private render(features: GeoJsonFeature[]) {
@@ -188,7 +215,6 @@ export class GpsLayer implements OnDestroy {
 
     this.layer.clearLayers();
 
-    // FIXED: Ensure features is an array
     if (!Array.isArray(features)) {
       console.error('[GpsLayer] features is not an array:', features);
       return;
@@ -197,7 +223,6 @@ export class GpsLayer implements OnDestroy {
     let rendered = 0;
 
     for (const f of features) {
-      // FIXED: Handle both feature formats
       const props = f.properties;
 
       if (!props) {
@@ -213,7 +238,6 @@ export class GpsLayer implements OnDestroy {
         lng = f.geometry.coordinates[0];
         lat = f.geometry.coordinates[1];
       } else if (props.latitude != null && props.longitude != null) {
-        // Fallback to properties
         lat = props.latitude;
         lng = props.longitude;
       } else {
@@ -227,8 +251,9 @@ export class GpsLayer implements OnDestroy {
         continue;
       }
 
-      // Color based on validity
-      const fillColor = props.is_valid ? '#3388ff' : '#ff6b6b';
+      // Determine entity type and color
+      const entityType = this.getEntityType(props);
+      const fillColor = props.is_valid ? this.getEntityColor(entityType) : '#ff6b6b';
 
       const marker = L.circleMarker([lat, lng], {
         radius: 5,
@@ -238,9 +263,10 @@ export class GpsLayer implements OnDestroy {
         fillOpacity: 0.8,
       });
 
-      // Build popup content
+      // Build popup content with entity type
       let popupContent = `
         <strong>Entity: ${props.entity_id}</strong><br/>
+        <strong>Type:</strong> ${entityType}<br/>
         <strong>Coords:</strong> ${lat.toFixed(5)}, ${lng.toFixed(5)}<br/>
         <strong>Time:</strong> ${new Date(props.timestamp).toLocaleString()}<br/>
       `;
@@ -274,6 +300,15 @@ export class GpsLayer implements OnDestroy {
     }
     this.layer.clearLayers();
     this.layer.remove();
+  }
+
+  /**
+   * Public method to force reload
+   */
+  reload() {
+    if (this.mode.mode() === 'gps' && this.map) {
+      this.loadPointsInViewport();
+    }
   }
 
   ngOnDestroy(): void {

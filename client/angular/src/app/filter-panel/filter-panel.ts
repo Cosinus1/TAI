@@ -1,0 +1,164 @@
+// client/angular/src/app/filter-panel/filter-panel.ts
+import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, signal, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { Gps } from '../services/gps';
+import { Dataset } from '../interfaces/gps';
+
+export interface FilterState {
+  entityTypes: string[];
+  selectedEntityType: string | null;
+  minSpeed: number | null;
+  maxSpeed: number | null;
+  startTime: string | null;
+  endTime: string | null;
+}
+
+@Component({
+  selector: 'app-filter-panel',
+  standalone: true,
+  imports: [CommonModule, FormsModule],
+  templateUrl: './filter-panel.html',
+  styleUrl: './filter-panel.scss',
+})
+export class FilterPanel implements OnInit, OnChanges {
+  @Input() datasetId: string | null = null;
+  @Output() filterChange = new EventEmitter<FilterState>();
+  @Output() applyFilters = new EventEmitter<void>();
+  @Output() resetFilters = new EventEmitter<void>();
+
+  private gps = inject(Gps);
+
+  entityTypes = signal<string[]>([]);
+  selectedEntityType = signal<string | null>(null);
+  minSpeed = signal<number | null>(null);
+  maxSpeed = signal<number | null>(null);
+  startTime = signal<string | null>(null);
+  endTime = signal<string | null>(null);
+  loading = signal<boolean>(false);
+
+  ngOnInit(): void {
+    this.loadEntityTypes();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['datasetId'] && this.datasetId) {
+      this.loadEntityTypes();
+      this.resetAllFilters();
+    }
+  }
+
+  loadEntityTypes(): void {
+    if (!this.datasetId) return;
+
+    this.loading.set(true);
+    this.gps.getEntityTypes(this.datasetId).subscribe({
+      next: (types) => {
+        this.entityTypes.set(types);
+        this.loading.set(false);
+      },
+      error: (err) => {
+        console.error('Failed to load entity types:', err);
+        // Fallback to default types
+        this.entityTypes.set(['bus', 'bike', 'car']);
+        this.loading.set(false);
+      }
+    });
+  }
+
+  onEntityTypeChange(event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    const value = select.value || null;
+    this.selectedEntityType.set(value);
+    this.emitFilterChange();
+  }
+
+  onMinSpeedChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const value = input.value ? parseFloat(input.value) : null;
+    this.minSpeed.set(value);
+    this.emitFilterChange();
+  }
+
+  onMaxSpeedChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const value = input.value ? parseFloat(input.value) : null;
+    this.maxSpeed.set(value);
+    this.emitFilterChange();
+  }
+
+  onStartTimeChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.startTime.set(input.value || null);
+    this.emitFilterChange();
+  }
+
+  onEndTimeChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.endTime.set(input.value || null);
+    this.emitFilterChange();
+  }
+
+  emitFilterChange(): void {
+    this.filterChange.emit(this.getCurrentFilters());
+  }
+
+  getCurrentFilters(): FilterState {
+    return {
+      entityTypes: this.entityTypes(),
+      selectedEntityType: this.selectedEntityType(),
+      minSpeed: this.minSpeed(),
+      maxSpeed: this.maxSpeed(),
+      startTime: this.startTime(),
+      endTime: this.endTime()
+    };
+  }
+
+  onApply(): void {
+    this.applyFilters.emit();
+  }
+
+  onReset(): void {
+    this.resetAllFilters();
+    this.resetFilters.emit();
+  }
+
+  resetAllFilters(): void {
+    this.selectedEntityType.set(null);
+    this.minSpeed.set(null);
+    this.maxSpeed.set(null);
+    this.startTime.set(null);
+    this.endTime.set(null);
+    this.emitFilterChange();
+  }
+
+  getEntityTypeColor(type: string): string {
+    const colors: { [key: string]: string } = {
+      'bus': '#FF5722',
+      'bike': '#4CAF50',
+      'car': '#2196F3',
+      'taxi': '#FFC107'
+    };
+    return colors[type] || '#9E9E9E';
+  }
+
+  getEntityTypeIcon(type: string): string {
+    const icons: { [key: string]: string } = {
+      'bus': '🚌',
+      'bike': '🚲',
+      'car': '🚗',
+      'taxi': '🚕'
+    };
+    return icons[type] || '📍';
+  }
+
+  hasActiveFilters(): boolean {
+    return !!(
+      this.selectedEntityType() ||
+      this.minSpeed() !== null ||
+      this.maxSpeed() !== null ||
+      this.startTime() ||
+      this.endTime()
+    );
+  }
+}
