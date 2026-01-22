@@ -28,8 +28,6 @@ export class Map implements AfterViewInit {
 
   // Filter inputs
   @Input() entityTypeFilter?: string | null = null;
-  @Input() minSpeedFilter?: number | null = null;
-  @Input() maxSpeedFilter?: number | null = null;
 
   // Map center configuration
   @Input() centerLat: number = 48.8566; // Paris by default
