@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
 """
 ============================================================================
-Management Command: Create Test Dataset
+Management Command: Create Test Dataset (FIXED)
 ============================================================================
 Creates a test dataset with 20 entities (bus, bike, car) in Paris
 Each entity has 50 GPS points
+FIXED: Now properly sets the geom field for bulk_create
 ============================================================================
 """
 
 import random
+import math
 from datetime import datetime, timedelta
 from django.core.management.base import BaseCommand
 from django.utils import timezone
+from django.contrib.gis.geos import Point
 from apps.mobility.models import Dataset, GPSPoint
 
 
@@ -169,7 +172,6 @@ class Command(BaseCommand):
             heading = heading % 360
             
             # Convert to coordinate changes
-            import math
             lon_change = (distance_km / 75) * math.cos(math.radians(heading))
             lat_change = (distance_km / 111) * math.sin(math.radians(heading))
             
@@ -189,13 +191,17 @@ class Command(BaseCommand):
             current_lon = new_lon
             current_lat = new_lat
             
-            # Create GPS point
+            # FIX: Create Point geometry for bulk_create
+            geom = Point(round(current_lon, 6), round(current_lat, 6), srid=4326)
+            
+            # Create GPS point with geometry included
             point = GPSPoint(
                 dataset=dataset,
                 entity_id=entity_id,
                 timestamp=current_time,
                 longitude=round(current_lon, 6),
                 latitude=round(current_lat, 6),
+                geom=geom,  # FIX: Include geometry!
                 speed=round(speed, 1),
                 heading=round(heading % 360, 1),
                 is_valid=True,

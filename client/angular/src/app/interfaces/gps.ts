@@ -69,6 +69,7 @@ export interface GeoJsonFeature {
 }
 
 export interface GeoJsonFeatureCollection {
+  results: boolean;
   type: 'FeatureCollection';
   count: number;
   features: GeoJsonFeature[];
