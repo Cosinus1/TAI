@@ -114,10 +114,11 @@ export class App implements OnInit {
 
   /**
    * Handler called by Sidebar when user selects an entity (taxi)
+   * This triggers trajectory rendering in the map
    */
   setSelectedEntity(entityId: string | null) {
     this.selectedEntity = entityId;
-    console.log('Selected entity:', entityId);
+    console.log('Selected entity for trajectory:', entityId);
   }
 
   /**
@@ -157,6 +158,11 @@ export class App implements OnInit {
     this.minSpeedFilter = filters.minSpeed;
     this.maxSpeedFilter = filters.maxSpeed;
     
+    // Update selected entity from filter panel
+    if (filters.selectedEntityId !== undefined) {
+      this.selectedEntity = filters.selectedEntityId;
+    }
+    
     console.log('Filters changed:', filters);
   }
 
@@ -176,6 +182,7 @@ export class App implements OnInit {
     this.entityTypeFilter = null;
     this.minSpeedFilter = null;
     this.maxSpeedFilter = null;
+    this.selectedEntity = null;
     this.loadEntities();
   }
 }

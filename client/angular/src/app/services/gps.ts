@@ -6,7 +6,7 @@ import { map } from 'rxjs/operators';
 import {
   Dataset,
   GpsPoint,
-  GeoJsonFeatureCollection,
+  RawGeoJsonFeatureCollection,
   Trajectory,
   ImportJob,
   ImportJobCreate,
@@ -154,9 +154,10 @@ export class Gps {
 
   /**
    * Advanced query for GPS points with spatial and entity type filtering
+   * Returns raw data that needs to be parsed by GeometryParser
    */
-  queryPoints(query: GpsPointQuery & { entity_type?: string }): Observable<GeoJsonFeatureCollection> {
-    return this.http.post<GeoJsonFeatureCollection>(
+  queryPoints(query: GpsPointQuery): Observable<any> {
+    return this.http.post<any>(
       `${this.apiUrl}/points/query/`,
       query
     );
@@ -164,6 +165,7 @@ export class Gps {
 
   /**
    * Get points in a bounding box with optional entity type filter
+   * Returns raw data that needs to be parsed by GeometryParser
    */
   getPointsInBbox(
     bbox: Bbox,
@@ -174,8 +176,8 @@ export class Gps {
       limit?: number;
       only_valid?: boolean;
     }
-  ): Observable<GeoJsonFeatureCollection> {
-    const query: GpsPointQuery & { entity_type?: string } = {
+  ): Observable<any> {
+    const query: GpsPointQuery = {
       min_lon: bbox.minLon,
       max_lon: bbox.maxLon,
       min_lat: bbox.minLat,
@@ -184,11 +186,8 @@ export class Gps {
       only_valid: options?.only_valid !== false,
       dataset: options?.dataset,
       entity_id: options?.entity_id,
+      entity_type: options?.entity_type
     };
-    
-    if (options?.entity_type) {
-      query.entity_type = options.entity_type;
-    }
 
     return this.queryPoints(query);
   }

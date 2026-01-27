@@ -1,6 +1,7 @@
 // client/angular/src/app/interfaces/gps.ts
 /**
  * Updated interfaces for the refactored generic mobility API
+ * Supports both proper GeoJSON and WKT geometry formats from the server
  */
 
 // ============================================================================
@@ -46,6 +47,36 @@ export interface GpsPoint {
   imported_at?: string;
 }
 
+/**
+ * Raw GeoJSON feature as returned by the server
+ * Note: geometry can be a WKT string like "SRID=4326;POINT (lng lat)"
+ */
+export interface RawGeoJsonFeature {
+  id: number;
+  type: 'Feature';
+  geometry: string | {
+    type: 'Point';
+    coordinates: [number, number];
+  } | null;
+  properties: {
+    dataset?: string;
+    dataset_name?: string;
+    entity_id: string;
+    timestamp: string;
+    longitude: number;
+    latitude: number;
+    altitude?: number;
+    accuracy?: number;
+    speed?: number;
+    heading?: number;
+    is_valid: boolean;
+    extra_attributes?: Record<string, any>;
+  };
+}
+
+/**
+ * Properly parsed GeoJSON feature
+ */
 export interface GeoJsonFeature {
   id: number;
   type: 'Feature';
@@ -68,8 +99,16 @@ export interface GeoJsonFeature {
   };
 }
 
+/**
+ * Raw feature collection as returned by the server
+ */
+export interface RawGeoJsonFeatureCollection {
+  type: 'FeatureCollection';
+  count: number;
+  features: RawGeoJsonFeature[];
+}
+
 export interface GeoJsonFeatureCollection {
-  results: boolean;
   type: 'FeatureCollection';
   count: number;
   features: GeoJsonFeature[];
@@ -164,6 +203,7 @@ export interface ImportJobCreate {
 
 export interface EntityStatistics {
   entity_id: string;
+  entity_type?: string;
   total_points: number;
   first_timestamp: string;
   last_timestamp: string;
@@ -171,6 +211,8 @@ export interface EntityStatistics {
   avg_points_per_day: number;
   total_distance_meters?: number;
   avg_speed_kmh?: number;
+  max_speed_kmh?: number;
+  min_speed_kmh?: number;
   total_trajectories?: number;
   avg_trajectory_distance?: number;
 }
@@ -188,11 +230,19 @@ export interface DatasetStatistics {
   validity_rate: number;
   valid_points: number;
   invalid_points: number;
+  avg_speed?: number;
   geographic_bounds?: {
     min_lon: number;
     max_lon: number;
     min_lat: number;
     max_lat: number;
+  };
+  entity_type_breakdown?: {
+    [key: string]: {
+      point_count: number;
+      entity_count: number;
+      avg_speed: number;
+    };
   };
 }
 
@@ -203,12 +253,15 @@ export interface DatasetStatistics {
 export interface GpsPointQuery {
   dataset?: string; // UUID
   entity_id?: string;
+  entity_type?: string;
   start_time?: string; // ISO 8601
   end_time?: string; // ISO 8601
   min_lon?: number;
   max_lon?: number;
   min_lat?: number;
   max_lat?: number;
+  min_speed?: number;
+  max_speed?: number;
   only_valid?: boolean;
   limit?: number;
 }

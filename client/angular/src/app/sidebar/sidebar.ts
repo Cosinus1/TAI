@@ -66,6 +66,15 @@ export class Sidebar {
     this.filterChange.emit(filters);
   }
 
+  /**
+   * Handle entity selection from the filter panel
+   * This triggers trajectory rendering for the selected entity
+   */
+  onEntitySelected(entityId: string | null) {
+    console.log('Entity selected for trajectory:', entityId);
+    this.taxiChange.emit(entityId);
+  }
+
   onApplyFilters() {
     this.apply.emit();
   }

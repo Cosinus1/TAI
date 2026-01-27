@@ -27,26 +27,14 @@
   }
   
   @else if (mode() === 'gps') {
-    <!-- Filter Panel -->
+    <!-- Filter Panel with Entity Selection -->
     <app-filter-panel
       [datasetId]="currentDataset()?.id || null"
       (filterChange)="onFilterChange($event)"
+      (entitySelected)="onEntitySelected($event)"
       (applyFilters)="onApplyFilters()"
       (resetFilters)="onResetFilters()">
     </app-filter-panel>
-
-    <!-- Entity Selector -->
-    <div class="entity-selector">
-      <label for="entity-select">Select Entity:</label>
-      <select id="entity-select" (change)="emitTaxiChange($event)">
-        <option value="">All Entities</option>
-        @for (entity of getFilteredEntities(); track $index) {
-          <option [value]="entity.entity_id">
-            {{ entity.entity_id }} ({{ entity.avg_points_per_day | number:'1.0-0' }} pts/day)
-          </option>
-        }
-      </select>
-    </div>
 
     <!-- Statistics Toggle Button -->
     <div class="stats-toggle">
