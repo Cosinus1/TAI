@@ -19,7 +19,7 @@ export class Gps {
   private http = inject(HttpClient);
   private readonly apiUrl = `${environment.backendPrefix}/api`;
 
-  getDatasets(params?: any): Observable<Dataset[]> {
+  getDatasets(params?: any): Observable<PaginatedResponse<Dataset>> {
     let httpParams = new HttpParams();
     if (params) {
       Object.keys(params).forEach(key => {
@@ -28,7 +28,7 @@ export class Gps {
         }
       });
     }
-    return this.http.get<Dataset[]>(`${this.apiUrl}/datasets/`, { params: httpParams });
+    return this.http.get<PaginatedResponse<Dataset>>(`${this.apiUrl}/datasets/`, { params: httpParams });
   }
 
   getDataset(id: string): Observable<Dataset> {
@@ -39,7 +39,7 @@ export class Gps {
     return this.http.delete<void>(`${this.apiUrl}/datasets/${id}/`);
   }
 
-  getPoints(params?: any): Observable<PaginatedResponse<GpsPoint>> {
+  getPoints(params?: any): Observable<any> {
     let httpParams = new HttpParams();
     if (params) {
       Object.keys(params).forEach(key => {
@@ -48,10 +48,10 @@ export class Gps {
         }
       });
     }
-    return this.http.get<PaginatedResponse<GpsPoint>>(`${this.apiUrl}/points/`, { params: httpParams });
+    return this.http.get<any>(`${this.apiUrl}/points/`, { params: httpParams });
   }
 
-  getTrajectories(params?: any): Observable<PaginatedResponse<Trajectory>> {
+  getTrajectories(params?: any): Observable<any> {
     let httpParams = new HttpParams();
     if (params) {
       Object.keys(params).forEach(key => {
@@ -60,7 +60,7 @@ export class Gps {
         }
       });
     }
-    return this.http.get<PaginatedResponse<Trajectory>>(`${this.apiUrl}/trajectories/`, { params: httpParams });
+    return this.http.get<any>(`${this.apiUrl}/trajectories/`, { params: httpParams });
   }
 
   getEntities(params?: any): Observable<EntityStatistics[]> {
@@ -76,9 +76,8 @@ export class Gps {
   }
 
   getEntityTypes(datasetId: string): Observable<string[]> {
-    return this.http.get<string[]>(`${this.apiUrl}/points/entity_types/`, {
-      params: { dataset: datasetId }
-    });
+    const httpParams = new HttpParams().set('dataset', datasetId);
+    return this.http.get<string[]>(`${this.apiUrl}/points/entity_types/`, { params: httpParams });
   }
 
   getDatasetStatistics(datasetId: string): Observable<DatasetStatistics> {

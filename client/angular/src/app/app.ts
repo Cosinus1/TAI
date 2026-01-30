@@ -22,7 +22,7 @@ export class App implements OnInit {
   selectedEntity: string | null = null;
 
   currentDataset: Dataset | null = null;
-  currentDatasetId?: string;
+  currentDatasetId: string | null = null;
 
   currentFilters: FilterState | null = null;
   entityTypeFilter: string | null = null;
@@ -37,7 +37,8 @@ export class App implements OnInit {
 
   private loadDatasets(): void {
     this.gps.getDatasets({ is_active: true }).subscribe({
-      next: datasets => {
+      next: response => {
+        const datasets = response.results || [];
         console.log('Datasets loaded:', datasets.length);
         
         const parisDataset = datasets.find(d => 
@@ -90,7 +91,7 @@ export class App implements OnInit {
 
   onDatasetChange(dataset: Dataset | null): void {
     this.currentDataset = dataset;
-    this.currentDatasetId = dataset?.id;
+    this.currentDatasetId = dataset?.id || null;
     this.selectedEntity = null;
     
     console.log('Dataset changed:', dataset?.name);
@@ -125,7 +126,7 @@ export class App implements OnInit {
     
     if (this.currentDatasetId === datasetId) {
       this.currentDataset = null;
-      this.currentDatasetId = undefined;
+      this.currentDatasetId = null;
       this.selectedEntity = null;
       this.entities = [];
     }
