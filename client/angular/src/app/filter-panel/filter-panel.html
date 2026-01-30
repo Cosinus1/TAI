@@ -60,14 +60,7 @@
                       [checked]="isEntitySelected(entity.entity_id)"
                       (change)="toggleEntity(entity.entity_id)">
                     <span class="checkbox-custom"></span>
-                    <span class="entity-info">
-                      <span class="entity-id">{{ entity.entity_id }}</span>
-                      <span class="entity-stats">
-                        {{ entity.total_points }} pts • 
-                        {{ entity.avg_points_per_day | number:'1.0-0' }}/day • 
-                        {{ entity.avg_speed | number:'1.0-0' }} km/h
-                      </span>
-                    </span>
+                    <span class="entity-id-text">{{ entity.entity_id }}</span>
                   </label>
                 </div>
               }

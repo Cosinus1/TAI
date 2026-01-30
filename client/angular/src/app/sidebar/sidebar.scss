@@ -1,7 +1,7 @@
 /* client/angular/src/app/sidebar/sidebar.scss */
 .side-bar {
   width: var(--sidebar-width);
-  padding: 24px;
+  padding: 16px;
   
   background: white;
   border-left: 1px solid var(--border-color);
@@ -9,139 +9,75 @@
   
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 16px;
   
   overflow-y: auto;
+  height: 100%;
   
-  h3 {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--text-primary);
-    
+  // Statistics toggle button
+  .btn-toggle-stats {
+    width: 100%;
     display: flex;
     align-items: center;
-    gap: 8px;
-    
-    &::before {
-      content: '';
-      width: 4px;
-      height: 20px;
-      background: linear-gradient(180deg, var(--blue-600), var(--blue-700));
-      border-radius: var(--radius-full);
-    }
-  }
-  
-  p {
-    margin: 0;
-    font-size: 14px;
-    color: var(--text-secondary);
-    line-height: 1.6;
-  }
-  
-  label {
-    display: block;
-    margin-bottom: 8px;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-primary);
-    letter-spacing: 0.3px;
-  }
-  
-  select {
-    width: 100%;
-    padding: 10px 14px;
-    font-size: 14px;
-    color: var(--text-primary);
-    
-    background: var(--surface-bg);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius);
-    cursor: pointer;
-    
-    transition: all var(--transition-fast);
-    
-    &:hover {
-      border-color: var(--primary);
-    }
-    
-    &:focus {
-      outline: none;
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-    }
-  }
-  
-  button {
-    width: 100%;
-    padding: 11px 20px;
-    font-size: 14px;
-    font-weight: 600;
-    
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: linear-gradient(135deg, var(--blue-600), var(--blue-700));
+    color: white;
     border: none;
-    border-radius: var(--radius);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
     cursor: pointer;
-    
-    transition: all var(--transition-fast);
-    
-    &[type="button"]:first-of-type {
-      background: linear-gradient(135deg, var(--blue-600), var(--blue-700));
-      color: white;
-      box-shadow: var(--shadow);
-      
-      &:hover {
-        background: linear-gradient(135deg, var(--blue-700), var(--blue-800));
-        box-shadow: var(--shadow-md);
-        transform: translateY(-1px);
-      }
-      
-      &:active {
-        transform: translateY(0);
-      }
+    transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+    .toggle-icon {
+      font-size: 0.8rem;
+      transition: transform 0.2s;
     }
-    
-    &[type="button"]:last-of-type {
-      background: var(--surface-tertiary);
-      color: var(--text-secondary);
-      
-      &:hover {
-        background: var(--gray-200);
-        color: var(--text-primary);
-      }
+
+    .toggle-text {
+      flex: 1;
+      text-align: left;
     }
-  }
-  
-  /* Entity list styling */
-  .entity-list {
-    max-height: 400px;
-    overflow-y: auto;
-    
-    .entity-item {
-      padding: 12px;
-      margin-bottom: 8px;
-      
-      background: var(--surface-secondary);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius);
-      
-      cursor: pointer;
-      transition: all var(--transition-fast);
-      
-      &:hover {
-        background: var(--blue-50);
-        border-color: var(--blue-300);
-        transform: translateX(4px);
-      }
-      
-      &.selected {
-        background: linear-gradient(135deg, var(--blue-100), var(--blue-50));
-        border-color: var(--blue-500);
-        box-shadow: var(--shadow-sm);
-      }
+
+    &:hover {
+      background: linear-gradient(135deg, var(--blue-700), var(--blue-800));
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+      transform: translateY(-1px);
+    }
+
+    &:active {
+      transform: translateY(0);
     }
   }
 
-  /* Selected entities info */
+  // Statistics section (collapsible)
+  .statistics-section {
+    animation: slideDown 0.3s ease-out;
+    overflow: hidden;
+  }
+
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      max-height: 0;
+    }
+    to {
+      opacity: 1;
+      max-height: 1000px;
+    }
+  }
+
+  // Filters section
+  .filters-section {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  // Selected entities info
   .selected-entities-info {
     display: flex;
     justify-content: space-between;
@@ -150,10 +86,9 @@
     background: linear-gradient(135deg, var(--blue-50), var(--blue-100));
     border: 1px solid var(--blue-300);
     border-radius: var(--radius);
-    margin-top: 8px;
     
     .selected-count {
-      font-size: 14px;
+      font-size: 0.85rem;
       font-weight: 600;
       color: var(--blue-800);
       display: flex;
@@ -164,10 +99,14 @@
     .selected-actions {
       .btn-action.btn-small {
         padding: 6px 12px;
-        font-size: 12px;
+        font-size: 0.75rem;
         background: var(--blue-600);
         color: white;
+        border: none;
         border-radius: var(--radius-sm);
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s;
         
         &:hover {
           background: var(--blue-700);
@@ -181,70 +120,24 @@
     }
   }
 
-  /* Info message styling */
+  // Info message styling
   .info-message {
     padding: 10px 14px;
     background: var(--yellow-50);
     border: 1px solid var(--yellow-300);
     border-radius: var(--radius);
-    font-size: 13px;
+    font-size: 0.8rem;
     color: var(--yellow-800);
-    margin-top: 8px;
   }
 
-  /* Help text styling */
+  // Help text styling
   .help-text {
     padding: 12px 16px;
     background: var(--surface-secondary);
     border: 1px solid var(--border-color);
     border-radius: var(--radius);
-    font-size: 13px;
+    font-size: 0.8rem;
     color: var(--text-secondary);
     text-align: center;
-    margin-top: 16px;
-  }
-
-  /* Quick actions styling */
-  .quick-actions {
-    display: flex;
-    gap: 8px;
-    margin-top: 16px;
-    
-    .btn-action {
-      flex: 1;
-      padding: 10px 16px;
-      font-size: 13px;
-      font-weight: 600;
-      background: var(--surface-tertiary);
-      color: var(--text-secondary);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius);
-      cursor: pointer;
-      transition: all var(--transition-fast);
-      
-      &:hover {
-        background: var(--gray-200);
-        color: var(--text-primary);
-        border-color: var(--gray-300);
-      }
-      
-      &.active {
-        background: var(--blue-600);
-        color: white;
-        border-color: var(--blue-600);
-      }
-      
-      &.btn-clear {
-        background: var(--red-50);
-        color: var(--red-700);
-        border-color: var(--red-300);
-        
-        &:hover {
-          background: var(--red-100);
-          color: var(--red-800);
-          border-color: var(--red-400);
-        }
-      }
-    }
   }
 }

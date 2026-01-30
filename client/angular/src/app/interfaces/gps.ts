@@ -168,7 +168,7 @@ export interface EntityStatistics {
   active_days: number;
   avg_points_per_day: number;
   total_distance_meters?: number;
-  avg_speed?: number;  // Server returns avg_speed (not avg_speed_kmh)
+  avg_speed?: number;  // Server returns avg_speed (not avg_speed)
   max_speed?: number;  // Server returns max_speed (not max_speed_kmh)
   min_speed?: number;  // Server returns min_speed (not min_speed_kmh)
   total_trajectories?: number;

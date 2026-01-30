@@ -6,40 +6,36 @@
     (datasetDeleted)="onDatasetDeleted($event)">
   </app-dataset-selector>
 
-  <!-- Entity Filter & Selection Panel -->
-  <app-filter-panel
-    [datasetId]="currentDataset()?.id || null"
-    (filterChange)="onFilterChange($event)"
-    (entitySelected)="onEntitySelected($event)"
-    (applyFilters)="onApplyFilters()"
-    (resetFilters)="onResetFilters()">
-  </app-filter-panel>
+  <!-- Statistics Toggle Button -->
+  @if (currentDataset()) {
+    <button 
+      type="button" 
+      class="btn-toggle-stats"
+      (click)="toggleStats()">
+      <span class="toggle-icon">{{ showStats() ? '▼' : '▶' }}</span>
+      <span class="toggle-text">{{ showStats() ? 'Hide Statistics' : 'Show Statistics' }}</span>
+    </button>
+  }
 
-  <!-- Speed Data Info (when speed filter is active) -->
-  @if (isSpeedFilterActive() && getEntitiesWithoutSpeedData() > 0) {
-    <div class="info-message">
-      ℹ️ {{ getEntitiesWithoutSpeedData() }} entities excluded (no speed data)
+  <!-- Collapsible Statistics Panel -->
+  @if (showStats() && currentDataset()) {
+    <div class="statistics-section">
+      <app-statistics-panel
+        [datasetId]="currentDataset()?.id || null"
+        [selectedEntity]="selectedEntity()">
+      </app-statistics-panel>
     </div>
   }
 
-  <!-- Quick Actions -->
-  <div class="quick-actions">
-    <button 
-      type="button" 
-      class="btn-action"
-      (click)="toggleStats()"
-      [class.active]="showStats()">
-      {{ showStats() ? '📊 Hide Stats' : '📊 Show Stats' }}
-    </button>
-    
-    @if (selectedEntity()) {
-      <button 
-        type="button" 
-        class="btn-action btn-clear"
-        (click)="clearSelection()">
-        ✕ Clear Single Selection
-      </button>
-    }
+  <!-- Entity Filter & Selection Panel -->
+  <div class="filters-section">
+    <app-filter-panel
+      [datasetId]="currentDataset()?.id || null"
+      (filterChange)="onFilterChange($event)"
+      (entitySelected)="onEntitySelected($event)"
+      (applyFilters)="onApplyFilters()"
+      (resetFilters)="onResetFilters()">
+    </app-filter-panel>
   </div>
 
   <!-- Selected Entities Info -->
@@ -59,18 +55,17 @@
     </div>
   }
 
-  <!-- Statistics Panel -->
-  @if (showStats() && currentDataset()) {
-    <app-statistics-panel
-      [datasetId]="currentDataset()?.id || null"
-      [selectedEntity]="selectedEntity()">
-    </app-statistics-panel>
+  <!-- Speed Data Info -->
+  @if (isSpeedFilterActive() && getEntitiesWithoutSpeedData() > 0) {
+    <div class="info-message">
+      ℹ️ {{ getEntitiesWithoutSpeedData() }} entities excluded (no speed data)
+    </div>
   }
 
   <!-- Help Text -->
-  @if (!selectedEntity() && currentDataset()) {
+  @if (!selectedEntity() && currentDataset() && !currentFilters()?.selectedEntityIds?.length) {
     <div class="help-text">
-      💡 Select an entity from the list above to view its trajectory on the map
+      💡 Select entities from the filters above to visualize their trajectories
     </div>
   }
 </div>
