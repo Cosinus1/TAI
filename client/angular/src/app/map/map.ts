@@ -1,7 +1,6 @@
 // client/angular/src/app/map/map.ts
 import { Component, Input, AfterViewInit, ViewChild, ElementRef, signal } from '@angular/core';
 import * as L from 'leaflet';
-import { ODPair } from '../interfaces/od';
 import { GpsLayer } from '../gps-layer/gps-layer';
 
 @Component({
@@ -12,12 +11,6 @@ import { GpsLayer } from '../gps-layer/gps-layer';
   styleUrl: './map.scss',
 })
 export class Map implements AfterViewInit {
-  // Liste des paires OD fournie par le parent
-  @Input() odPairs: ODPair[] = [];
-  
-  // Optionnel : un parent peut transmettre un index sélectionné pour n'afficher
-  // qu'une seule paire. Si null ou undefined, on affiche toutes les paires.
-  @Input() selectedIndex: number | null = null;
   
   // Selected entity (taxi, vehicle, etc.)
   @Input() selectedEntity: string | null = null;
