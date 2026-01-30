@@ -1,3 +1,4 @@
+// client/angular/src/app/topbar/topbar.ts
 import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { DataUpload } from '../data-upload/data-upload';
@@ -12,13 +13,16 @@ import { Mode } from '../services/mode';
 })
 export class Topbar {
   private modalService = inject(NgbModal);
-  private Mode = inject(Mode);
+  private modeService = inject(Mode);
   
-  mode = this.Mode.mode;
+  mode = this.modeService.mode;
 
   ngOnInit() {
-    // Ensure GPS mode is set on initialization
-    this.Mode.setMode('gps');
+    this.modeService.setMode('gps');
+  }
+
+  setMode(mode: 'gps' | 'trajectory') {
+    this.modeService.setMode(mode);
   }
 
   openUploadModal() {
