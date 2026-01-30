@@ -12,6 +12,9 @@ from django.db.models import Count, Min, Max, Avg, Sum, Q
 from django.contrib.gis.geos import Polygon
 from django.shortcuts import get_object_or_404
 import logging
+import tempfile
+import os
+import json
 
 from apps.mobility.models import (
     Dataset,
@@ -519,51 +522,163 @@ class ImportJobViewSet(viewsets.ReadOnlyModelViewSet):
     
     @action(detail=False, methods=['post'])
     def start_import(self, request):
-        """Start a new data import job."""
-        serializer = ImportJobCreateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        params = serializer.validated_data
+        """
+        Handle file upload and start import.
         
-        dataset = get_object_or_404(Dataset, id=params['dataset_id'])
+        Expected form data:
+        - file: The uploaded file (multipart/form-data)
+        - dataset_name: Name of the dataset
+        - description: Optional description
+        - geographic_scope: Optional geographic scope
+        - field_mapping: JSON string of field mapping
+        - source_type: 'file' (default)
+        - file_format: 'txt' or 'csv'
+        - delimiter: ',' (default)
+        - skip_header: 'true' or 'false'
+        """
         
-        importer = MobilityDataImporter(dataset)
+        # Get uploaded file
+        uploaded_file = request.FILES.get('file')
+        if not uploaded_file:
+            return Response(
+                {'error': 'No file provided. Use multipart/form-data with "file" field'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
-        import_config = {
-            'field_mapping': params.get('field_mapping', {}),
-            'validation': params.get('validation_config', {}),
-            'delimiter': params.get('delimiter', ','),
-            'skip_header': params.get('skip_header', True),
-            'file_format': params.get('file_format', 'csv')
-        }
+        # Get metadata from form data
+        dataset_name = request.POST.get('dataset_name')
+        if not dataset_name:
+            return Response(
+                {'error': 'dataset_name required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        description = request.POST.get('description', '')
+        geographic_scope = request.POST.get('geographic_scope', '')
+        source_type = request.POST.get('source_type', 'file')
+        file_format = request.POST.get('file_format', 'txt')
+        delimiter = request.POST.get('delimiter', ',')
+        skip_header = request.POST.get('skip_header', 'true').lower() == 'true'
+        
+        # Parse field mapping
+        field_mapping_str = request.POST.get('field_mapping', '{}')
+        try:
+            field_mapping = json.loads(field_mapping_str)
+        except json.JSONDecodeError:
+            field_mapping = {}
+        
+        # Default T-Drive field mapping if not provided
+        if not field_mapping:
+            field_mapping = {
+                'entity_id': 'taxi_id',
+                'timestamp': 'timestamp',
+                'longitude': 'longitude',
+                'latitude': 'latitude'
+            }
+        
+        logger.info(f"Starting import for dataset: {dataset_name}")
+        logger.info(f"File: {uploaded_file.name} ({uploaded_file.size} bytes)")
+        logger.info(f"Field mapping: {field_mapping}")
         
         try:
-            if params['source_type'] == 'file':
-                if params.get('file_format') == 'csv':
-                    job = importer.import_from_csv(
-                        params['source_path'],
-                        import_config
-                    )
-                elif params.get('file_format') == 'txt':
-                    job = importer.import_text_file(
-                        params['source_path'],
-                        import_config
-                    )
-                else:
-                    return Response(
-                        {'error': f"Unsupported file format: {params.get('file_format')}"},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
+            # Create or get dataset
+            dataset, created = Dataset.objects.get_or_create(
+                name=dataset_name,
+                defaults={
+                    'description': description,
+                    'dataset_type': 'gps_trace',
+                    'data_format': file_format,
+                    'field_mapping': field_mapping,
+                    'geographic_scope': geographic_scope,
+                    'is_active': True
+                }
+            )
+            
+            if created:
+                logger.info(f"Created new dataset: {dataset.id}")
             else:
-                return Response(
-                    {'error': f"Source type '{params['source_type']}' not yet supported"},
-                    status=status.HTTP_501_NOT_IMPLEMENTED
+                logger.info(f"Using existing dataset: {dataset.id}")
+            
+            # Create import job
+            job = ImportJob.objects.create(
+                dataset=dataset,
+                source_type=source_type,
+                source_path=uploaded_file.name,
+                import_config={
+                    'field_mapping': field_mapping,
+                    'delimiter': delimiter,
+                    'skip_header': skip_header,
+                    'file_format': file_format
+                },
+                status='pending'
+            )
+            
+            # Save uploaded file temporarily
+            temp_file = tempfile.NamedTemporaryFile(
+                delete=False, 
+                suffix=f'.{file_format}',
+                mode='wb'
+            )
+            
+            try:
+                # Write file chunks
+                for chunk in uploaded_file.chunks():
+                    temp_file.write(chunk)
+                temp_file.close()
+                
+                logger.info(f"Saved temp file: {temp_file.name}")
+                
+                # Import data using simplified importer
+                from apps.mobility.services.simple_importer import SimpleDataImporter
+                
+                importer = SimpleDataImporter(dataset, job)
+                result = importer.import_file(
+                    temp_file.name,
+                    field_mapping=field_mapping,
+                    delimiter=delimiter,
+                    skip_header=skip_header
                 )
-            
-            serializer = ImportJobSerializer(job)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-            
+                
+                # Update job with results
+                job.total_records = result.get('total_lines', 0)
+                job.processed_records = result.get('total_lines', 0)
+                job.successful_records = result.get('successful', 0)
+                job.failed_records = result.get('failed', 0)
+                
+                if result['success']:
+                    job.status = 'completed'
+                    logger.info(f"Import completed: {job.successful_records} points imported")
+                else:
+                    job.status = 'failed'
+                    job.error_message = '; '.join(result.get('errors', []))
+                    logger.error(f"Import failed: {job.error_message}")
+                
+                job.save()
+                
+                # Return job details
+                serializer = ImportJobSerializer(job)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+                
+            finally:
+                # Cleanup temp file
+                try:
+                    os.unlink(temp_file.name)
+                    logger.info(f"Cleaned up temp file: {temp_file.name}")
+                except Exception as e:
+                    logger.warning(f"Failed to cleanup temp file: {e}")
+        
         except Exception as e:
-            logger.error(f"Import failed: {str(e)}")
+            logger.error(f"Import failed: {str(e)}", exc_info=True)
+            
+            # Try to update job status if it was created
+            try:
+                if 'job' in locals():
+                    job.status = 'failed'
+                    job.error_message = str(e)
+                    job.save()
+            except:
+                pass
+            
             return Response(
                 {'error': f"Import failed: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -571,7 +686,7 @@ class ImportJobViewSet(viewsets.ReadOnlyModelViewSet):
     
     @action(detail=True, methods=['get'])
     def progress(self, request, pk=None):
-        """Get current progress of an import job."""
+        """Get import job progress."""
         job = self.get_object()
         
         progress_pct = 0
@@ -582,7 +697,7 @@ class ImportJobViewSet(viewsets.ReadOnlyModelViewSet):
             )
         
         return Response({
-            'id': job.id,
+            'id': str(job.id),
             'status': job.status,
             'progress_percentage': progress_pct,
             'processed_records': job.processed_records,
@@ -590,9 +705,10 @@ class ImportJobViewSet(viewsets.ReadOnlyModelViewSet):
             'failed_records': job.failed_records,
             'total_records': job.total_records,
             'started_at': job.started_at,
-            'duration_seconds': job.duration_seconds
+            'completed_at': job.completed_at,
+            'duration_seconds': job.duration_seconds,
+            'error_message': job.error_message
         })
-
 
 # ============================================================================
 # Entity Statistics ViewSet - Enhanced
