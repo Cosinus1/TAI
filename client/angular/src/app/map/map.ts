@@ -16,7 +16,7 @@ export class Map implements AfterViewInit {
   @Input() selectedEntity: string | null = null;
   
   // Optional: Dataset ID to filter data
-  @Input() datasetId?: string;
+  @Input() datasetId: string | null = null;
 
   // Filter inputs
   @Input() entityTypeFilter?: string | null = null;

@@ -2,8 +2,8 @@
 import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, signal, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Gps, ExtendedEntityStatistics } from '../services/gps';
-import { Dataset } from '../interfaces/gps';
+import { Gps } from '../services/gps';
+import { Dataset, EntityStatistics } from '../interfaces/gps';
 
 export interface FilterState {
   entityTypes: string[];
@@ -36,7 +36,7 @@ export class FilterPanel implements OnInit, OnChanges {
   selectedEntityType = signal<string | null>(null);
   
   // Entity selection
-  allEntities = signal<ExtendedEntityStatistics[]>([]);
+  allEntities = signal<EntityStatistics[]>([]);
   selectedEntityId = signal<string | null>(null);
   entitiesLoading = signal<boolean>(false);
   
@@ -241,8 +241,8 @@ export class FilterPanel implements OnInit, OnChanges {
   /**
    * Get display label for an entity
    */
-  getEntityLabel(entity: ExtendedEntityStatistics): string {
-    const avgPoints = Math.round(entity.avg_points_per_day);
+  getEntityLabel(entity: EntityStatistics): string {
+    const avgPoints = Math.round(entity.avg_points_per_day || 0);
     const totalPoints = entity.total_points;
     return `${entity.entity_id} (${totalPoints} pts, ${avgPoints}/day)`;
   }

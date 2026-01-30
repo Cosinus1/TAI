@@ -48,33 +48,6 @@ export interface GpsPoint {
 }
 
 /**
- * Raw GeoJSON feature as returned by the server
- * Note: geometry can be a WKT string like "SRID=4326;POINT (lng lat)"
- */
-export interface RawGeoJsonFeature {
-  id: number;
-  type: 'Feature';
-  geometry: string | {
-    type: 'Point';
-    coordinates: [number, number];
-  } | null;
-  properties: {
-    dataset?: string;
-    dataset_name?: string;
-    entity_id: string;
-    timestamp: string;
-    longitude: number;
-    latitude: number;
-    altitude?: number;
-    accuracy?: number;
-    speed?: number;
-    heading?: number;
-    is_valid: boolean;
-    extra_attributes?: Record<string, any>;
-  };
-}
-
-/**
  * Properly parsed GeoJSON feature
  */
 export interface GeoJsonFeature {
@@ -97,21 +70,6 @@ export interface GeoJsonFeature {
     is_valid: boolean;
     extra_attributes?: Record<string, any>;
   };
-}
-
-/**
- * Raw feature collection as returned by the server
- */
-export interface RawGeoJsonFeatureCollection {
-  type: 'FeatureCollection';
-  count: number;
-  features: RawGeoJsonFeature[];
-}
-
-export interface GeoJsonFeatureCollection {
-  type: 'FeatureCollection';
-  count: number;
-  features: GeoJsonFeature[];
 }
 
 // ============================================================================
@@ -292,46 +250,4 @@ export interface PaginatedResponse<T> {
   next: string | null;
   previous: string | null;
   results: T[];
-}
-
-// ============================================================================
-// Legacy Compatibility (for migration period)
-// ============================================================================
-
-export interface TaxiFeatureCollectionResponse {
-  count: number;
-  next: string | null;
-  previous: string | null;
-  results: GeoJsonFeatureCollection;
-}
-
-/**
- * @deprecated Use EntityStatistics instead
- */
-export interface Taxi extends EntityStatistics {
-  taxi_id: string; // Maps to entity_id
-}
-
-/**
- * Helper to convert legacy Taxi to EntityStatistics
- */
-export function taxiToEntity(taxi: Taxi): EntityStatistics {
-  return {
-    entity_id: taxi.taxi_id,
-    total_points: taxi.total_points,
-    first_timestamp: taxi.first_timestamp,
-    last_timestamp: taxi.last_timestamp,
-    active_days: taxi.active_days,
-    avg_points_per_day: taxi.avg_points_per_day,
-  };
-}
-
-/**
- * Helper to convert EntityStatistics to legacy Taxi format
- */
-export function entityToTaxi(entity: EntityStatistics): Taxi {
-  return {
-    ...entity,
-    taxi_id: entity.entity_id,
-  };
 }

@@ -35,6 +35,8 @@ export class DatasetSelector implements OnInit {
 
     this.gps.getDatasets({ is_active: true }).subscribe({
       next: (datasets) => {
+        //tmp
+        console.log('Datasets API response:', datasets);
         this.datasets.set(datasets);
         this.loading.set(false);
         

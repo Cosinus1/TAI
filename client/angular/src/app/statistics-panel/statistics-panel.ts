@@ -1,7 +1,8 @@
 // client/angular/src/app/statistics-panel/statistics-panel.ts
 import { Component, Input, OnChanges, SimpleChanges, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Gps, ExtendedDatasetStatistics } from '../services/gps';
+import { Gps } from '../services/gps';
+import { Dataset, DatasetStatistics } from '../interfaces/gps';
 
 @Component({
   selector: 'app-statistics-panel',
@@ -16,7 +17,7 @@ export class StatisticsPanel implements OnChanges {
   
   private gps = inject(Gps);
   
-  statistics = signal<ExtendedDatasetStatistics | null>(null);
+  statistics = signal<DatasetStatistics | null>(null);
   loading = signal<boolean>(false);
   error = signal<string | null>(null);
   
