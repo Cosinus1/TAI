@@ -1,7 +1,6 @@
 ├── README.md
 ├── apps
 │   ├── __init__.py
-│   ├── analytics
 │   │   ├── __init__.py
 │   │   ├── serializers.py
 │   │   ├── services

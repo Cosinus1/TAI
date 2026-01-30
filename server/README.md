@@ -38,9 +38,6 @@ python manage.py runserver
 
 - `apps/` - Django applications
   - `mobility/` - GPS traces and OD data
-  - `poi/` - Points of Interest
-  - `ml/` - Machine Learning models
-  - `analytics/` - Analysis and visualization
 - `database/` - Database scripts and sample data
 - `notebooks/` - Jupyter notebooks for experimentation
 - `utils/` - Utility functions
