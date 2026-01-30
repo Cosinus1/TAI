@@ -1,28 +1,28 @@
 // client/angular/src/app/services/mode.ts
 import { Injectable, signal } from '@angular/core';
 
-export type AppMode = 'gps';
+export type AppMode = 'gps' | 'trajectory';
 
 @Injectable({
   providedIn: 'root'
 })
 export class Mode {
-  // Always set to 'gps' mode
   mode = signal<AppMode>('gps');
   
   constructor() {
-    // Initialize to GPS mode
     this.mode.set('gps');
   }
   
-  // Keep method signature for backward compatibility
-  // but always sets to 'gps'
   setMode(mode: AppMode) {
-    this.mode.set('gps');
+    this.mode.set(mode);
+    console.log('Mode switched to:', mode);
   }
   
-  // Helper to check if in GPS mode (always true)
   isGPSMode(): boolean {
-    return true;
+    return this.mode() === 'gps';
+  }
+  
+  isTrajectoryMode(): boolean {
+    return this.mode() === 'trajectory';
   }
 }
