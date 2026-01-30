@@ -1,6 +1,20 @@
+<!-- client/angular/src/app/topbar/topbar.html -->
 <div class="top-bar">
   <h2 class="app-title">Urban Mobility Analysis</h2>
   
+  <div class="mode-selector">
+    <button 
+      [class.active]="mode() === 'gps'"
+      (click)="setMode('gps')">
+      📍 GPS Points
+    </button>
+    <button 
+      [class.active]="mode() === 'trajectory'"
+      (click)="setMode('trajectory')">
+      📈 Trajectories
+    </button>
+  </div>
+
   <button class="btn-upload" (click)="openUploadModal()">
     Importer un set
   </button>
