@@ -39,11 +39,8 @@ from apps.mobility.serializers import (
     EntityStatisticsSerializer,
     DatasetStatisticsSerializer
 )
-from apps.mobility.services.generic_importer import (
-    MobilityDataImporter,
-    TDriveImporter
-)
-from apps.mobility.services.enhanced_trajectory_calculator import EnhancedTrajectoryCalculator
+
+from apps.mobility.services.trajectory_calculator import TrajectoryCalculator
 
 logger = logging.getLogger(__name__)
 
@@ -605,7 +602,7 @@ class TrajectoryViewSet(viewsets.ReadOnlyModelViewSet):
         trajectory = self.get_object()
         
         try:
-            calculator = EnhancedTrajectoryCalculator(trajectory.dataset)
+            calculator = TrajectoryCalculator(trajectory.dataset)
             analysis = calculator.get_trajectory_with_stops(
                 trajectory.entity_id,
                 trajectory.trajectory_date
@@ -647,7 +644,7 @@ class TrajectoryViewSet(viewsets.ReadOnlyModelViewSet):
             )
         
         try:
-            calculator = EnhancedTrajectoryCalculator(dataset)
+            calculator = TrajectoryCalculator(dataset)
             
             if entity_id:
                 stats = calculator.calculate_entity_enhanced_trajectories(entity_id)
@@ -687,7 +684,7 @@ class TrajectoryViewSet(viewsets.ReadOnlyModelViewSet):
             point1 = GPSPoint.objects.get(id=point1_id)
             point2 = GPSPoint.objects.get(id=point2_id)
             
-            calculator = EnhancedTrajectoryCalculator(point1.dataset)
+            calculator = TrajectoryCalculator(point1.dataset)
             speed = calculator.calculate_average_speed_between_points(point1, point2)
             
             if speed is None:
@@ -747,7 +744,7 @@ class TrajectoryViewSet(viewsets.ReadOnlyModelViewSet):
                     'point_count': len(points)
                 }, status=status.HTTP_400_BAD_REQUEST)
             
-            calculator = EnhancedTrajectoryCalculator(dataset)
+            calculator = TrajectoryCalculator(dataset)
             interpolated = calculator.interpolate_trajectory_points(
                 list(points), interval_seconds
             )

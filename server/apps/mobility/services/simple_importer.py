@@ -1,6 +1,6 @@
 """
 ============================================================================
-Simple Data Importer with Trajectory Calculation
+ Data Importer with Trajectory Calculation
 ============================================================================
 """
 
@@ -110,7 +110,7 @@ class SimpleDataImporter:
         try:
             from apps.mobility.services.trajectory_calculator import TrajectoryCalculator
             calculator = TrajectoryCalculator(self.dataset)
-            return calculator.calculate_all_trajectories()
+            return calculator.calculate_trajectories()
         except Exception as e:
             logger.error(f"Trajectory calculation failed: {e}")
             return {'total_trajectories': 0}
