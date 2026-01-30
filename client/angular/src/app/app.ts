@@ -18,15 +18,12 @@ import { FilterState } from './filter-panel/filter-panel';
 export class App implements OnInit {
   @ViewChild(Map) mapComponent!: Map;
 
-  // Entities (vehicles, taxis, bikes, etc.)
   entities: EntityStatistics[] = [];
   selectedEntity: string | null = null;
 
-  // Current dataset
   currentDataset: Dataset | null = null;
   currentDatasetId?: string;
 
-  // Filter state
   currentFilters: FilterState | null = null;
   entityTypeFilter: string | null = null;
   minSpeedFilter: number | null = null;
@@ -35,19 +32,14 @@ export class App implements OnInit {
   constructor(private gps: Gps) {}
 
   ngOnInit() {
-    // Load datasets on init
     this.loadDatasets();
   }
 
-  /**
-   * Load available datasets
-   */
   private loadDatasets(): void {
     this.gps.getDatasets({ is_active: true }).subscribe({
       next: datasets => {
         console.log('Datasets loaded:', datasets.length);
         
-        // Try to auto-select Paris test dataset first, then T-Drive
         const parisDataset = datasets.find(d => 
           d.name.toLowerCase().includes('paris')
         );
@@ -69,9 +61,6 @@ export class App implements OnInit {
     });
   }
 
-  /**
-   * Load entities for the current dataset
-   */
   private loadEntities(): void {
     if (!this.currentDatasetId) {
       this.entities = [];
@@ -94,18 +83,11 @@ export class App implements OnInit {
     });
   }
 
-  /**
-   * Handler called when user selects an entity
-   * This triggers trajectory rendering in the map
-   */
   setSelectedEntity(entityId: string | null) {
     this.selectedEntity = entityId;
     console.log('Selected entity for trajectory:', entityId);
   }
 
-  /**
-   * Handler for dataset change
-   */
   onDatasetChange(dataset: Dataset | null): void {
     this.currentDataset = dataset;
     this.currentDatasetId = dataset?.id;
@@ -113,22 +95,34 @@ export class App implements OnInit {
     
     console.log('Dataset changed:', dataset?.name);
 
-    // Reset filters when dataset changes
     this.entityTypeFilter = null;
     this.minSpeedFilter = null;
     this.maxSpeedFilter = null;
     
-    // Load entities for new dataset
+    if (dataset?.id) {
+      this.centerMapOnDataset(dataset.id);
+    }
+    
     this.loadEntities();
   }
 
-  /**
-   * Handler for dataset deletion
-   */
+  private centerMapOnDataset(datasetId: string): void {
+    this.gps.getPoints({ dataset: datasetId, page_size: 1 }).subscribe({
+      next: response => {
+        if (response.results && response.results.length > 0) {
+          const firstPoint = response.results[0];
+          if (this.mapComponent && firstPoint.latitude && firstPoint.longitude) {
+            this.mapComponent.centerOn(firstPoint.latitude, firstPoint.longitude, 12);
+          }
+        }
+      },
+      error: err => console.error('Failed to get first point for centering:', err)
+    });
+  }
+
   onDatasetDeleted(datasetId: string): void {
     console.log('Dataset deleted:', datasetId);
     
-    // Clear current selection if deleted dataset was selected
     if (this.currentDatasetId === datasetId) {
       this.currentDataset = null;
       this.currentDatasetId = undefined;
@@ -136,20 +130,15 @@ export class App implements OnInit {
       this.entities = [];
     }
     
-    // Reload datasets
     this.loadDatasets();
   }
 
-  /**
-   * Handler for filter changes from sidebar
-   */
   onFilterChange(filters: FilterState): void {
     this.currentFilters = filters;
     this.entityTypeFilter = filters.selectedEntityType;
     this.minSpeedFilter = filters.minSpeed;
     this.maxSpeedFilter = filters.maxSpeed;
     
-    // Update selected entity from filter panel
     if (filters.selectedEntityId !== undefined) {
       this.selectedEntity = filters.selectedEntityId;
     }
@@ -157,17 +146,11 @@ export class App implements OnInit {
     console.log('Filters changed:', filters);
   }
 
-  /**
-   * Apply filters and reload data
-   */
   onApplyFilters(): void {
     console.log('Applying filters...');
     this.loadEntities();
   }
 
-  /**
-   * Reset all filters
-   */
   onResetFilters(): void {
     console.log('Resetting filters...');
     this.entityTypeFilter = null;
