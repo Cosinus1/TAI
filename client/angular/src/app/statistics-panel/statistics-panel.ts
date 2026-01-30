@@ -12,6 +12,7 @@ import { Gps, ExtendedDatasetStatistics } from '../services/gps';
 })
 export class StatisticsPanel implements OnChanges {
   @Input() datasetId: string | null = null;
+  @Input() selectedEntity: string | null = null;
   
   private gps = inject(Gps);
   

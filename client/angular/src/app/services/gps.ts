@@ -92,6 +92,13 @@ export class Gps {
   }
 
   /**
+   * Delete a dataset and all associated data
+   */
+  deleteDataset(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/datasets/${id}/`);
+  }
+
+  /**
    * Get statistics for a specific dataset (extended with entity type breakdown)
    */
   getDatasetStatistics(id: string): Observable<ExtendedDatasetStatistics> {

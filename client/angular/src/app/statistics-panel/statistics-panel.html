@@ -1,6 +1,6 @@
 <!-- client/angular/src/app/statistics-panel/statistics-panel.html -->
 <div class="statistics-panel">
-  <h3>📊 Dataset Statistics</h3>
+  <h3>📊 Statistics</h3>
   
   @if (loading()) {
     <div class="loading">Loading statistics...</div>
@@ -12,6 +12,14 @@
   
   @if (statistics(); as stats) {
     <div class="stats-content">
+      <!-- Selected Entity Badge -->
+      @if (selectedEntity) {
+        <div class="selected-entity-badge">
+          <span class="badge-icon">🎯</span>
+          <span class="badge-text">{{ selectedEntity }}</span>
+        </div>
+      }
+
       <!-- Overview Section -->
       <section class="stats-section">
         <h4>Overview</h4>

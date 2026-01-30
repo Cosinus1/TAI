@@ -2,13 +2,12 @@
 import { Component, Input, AfterViewInit, ViewChild, ElementRef, signal } from '@angular/core';
 import * as L from 'leaflet';
 import { ODPair } from '../interfaces/od';
-import { OdLayer } from "../od-layer/od-layer";
 import { GpsLayer } from '../gps-layer/gps-layer';
 
 @Component({
   selector: 'app-map',
   standalone: true,
-  imports: [OdLayer, GpsLayer],
+  imports: [GpsLayer],
   templateUrl: './map.html',
   styleUrl: './map.scss',
 })
