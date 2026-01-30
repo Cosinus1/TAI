@@ -1,9 +1,6 @@
 """
 ============================================================================
-Simple Data Importer for Dataset Upload
-============================================================================
-Simplified importer that handles file uploads directly without complex
-validation layers. Optimized for direct use with frontend uploads.
+Simple Data Importer with Trajectory Calculation
 ============================================================================
 """
 
@@ -21,7 +18,7 @@ logger = logging.getLogger(__name__)
 class SimpleDataImporter:
     """
     Simplified importer for GPS data files.
-    Handles T-Drive format and similar comma-separated GPS traces.
+    Automatically calculates trajectories after import.
     """
     
     def __init__(self, dataset, import_job):
@@ -37,16 +34,7 @@ class SimpleDataImporter:
         skip_header: bool = True
     ) -> Dict:
         """
-        Import GPS data from file.
-        
-        Args:
-            file_path: Path to the uploaded file
-            field_mapping: Maps standard fields to source fields
-            delimiter: Field delimiter
-            skip_header: Whether to skip first row
-        
-        Returns:
-            Dict with import statistics
+        Import GPS data from file and calculate trajectories.
         """
         from apps.mobility.models import GPSPoint
         
@@ -55,7 +43,8 @@ class SimpleDataImporter:
             'total_lines': 0,
             'successful': 0,
             'failed': 0,
-            'errors': []
+            'errors': [],
+            'trajectories_calculated': 0
         }
         
         self.import_job.status = 'processing'
@@ -68,7 +57,6 @@ class SimpleDataImporter:
             with open(file_path, 'r', encoding='utf-8') as f:
                 reader = csv.reader(f, delimiter=delimiter)
                 
-                # Skip header if needed
                 if skip_header:
                     try:
                         next(reader)
@@ -78,24 +66,26 @@ class SimpleDataImporter:
                 for line_num, row in enumerate(reader, start=1):
                     stats['total_lines'] += 1
                     
-                    # Parse row
                     point_data = self._parse_row(row, field_mapping, line_num)
                     
                     if point_data:
                         points_batch.append(point_data)
                         
-                        # Bulk insert when batch is full
                         if len(points_batch) >= self.batch_size:
                             saved = self._save_batch(points_batch)
                             stats['successful'] += saved
                             stats['failed'] += len(points_batch) - saved
                             points_batch = []
                 
-                # Save remaining points
                 if points_batch:
                     saved = self._save_batch(points_batch)
                     stats['successful'] += saved
                     stats['failed'] += len(points_batch) - saved
+            
+            logger.info(f"Calculating trajectories for dataset {self.dataset.id}")
+            traj_stats = self._calculate_trajectories()
+            stats['trajectories_calculated'] = traj_stats.get('total_trajectories', 0)
+            logger.info(f"Created {stats['trajectories_calculated']} trajectories")
             
             stats['success'] = True
             self.import_job.status = 'completed'
@@ -115,34 +105,30 @@ class SimpleDataImporter:
         
         return stats
     
-    def _parse_row(self, row: list, field_mapping: Dict[str, str], line_num: int) -> Optional[Dict]:
-        """
-        Parse a CSV row into point data.
-        
-        Field mapping format:
-        {
-            "entity_id": "taxi_id",   # Maps to column 0
-            "timestamp": "timestamp",  # Maps to column 1  
-            "longitude": "longitude",  # Maps to column 2
-            "latitude": "latitude"     # Maps to column 3
-        }
-        """
+    def _calculate_trajectories(self) -> Dict:
+        """Calculate trajectories after import."""
         try:
-            # For T-Drive format: taxi_id, timestamp, longitude, latitude
+            from apps.mobility.services.trajectory_calculator import TrajectoryCalculator
+            calculator = TrajectoryCalculator(self.dataset)
+            return calculator.calculate_all_trajectories()
+        except Exception as e:
+            logger.error(f"Trajectory calculation failed: {e}")
+            return {'total_trajectories': 0}
+    
+    def _parse_row(self, row: list, field_mapping: Dict[str, str], line_num: int) -> Optional[Dict]:
+        """Parse a CSV row into point data."""
+        try:
             if len(row) < 4:
                 return None
             
-            # Default T-Drive parsing
             entity_id = row[0].strip()
             timestamp_str = row[1].strip()
             longitude_str = row[2].strip()
             latitude_str = row[3].strip()
             
-            # Parse timestamp
             try:
                 timestamp = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
             except ValueError:
-                # Try alternative formats
                 for fmt in ['%Y-%m-%dT%H:%M:%S', '%d/%m/%Y %H:%M:%S']:
                     try:
                         timestamp = datetime.strptime(timestamp_str, fmt)
@@ -152,11 +138,9 @@ class SimpleDataImporter:
                 else:
                     return None
             
-            # Parse coordinates
             longitude = float(longitude_str)
             latitude = float(latitude_str)
             
-            # Basic validation
             if not (-180 <= longitude <= 180 and -90 <= latitude <= 90):
                 return None
             
@@ -172,20 +156,13 @@ class SimpleDataImporter:
             return None
     
     def _save_batch(self, points_data: list) -> int:
-        """
-        Save a batch of points to database.
-        Uses individual saves with try-except to handle duplicates.
-        
-        Returns:
-            Number of successfully saved points
-        """
+        """Save a batch of points to database."""
         from apps.mobility.models import GPSPoint
         
         saved_count = 0
         
         for point_data in points_data:
             try:
-                # Create point with geometry
                 point = GPSPoint(
                     dataset=self.dataset,
                     entity_id=point_data['entity_id'],
@@ -199,7 +176,6 @@ class SimpleDataImporter:
                 saved_count += 1
                 
             except Exception as e:
-                # Skip duplicates and other errors
                 logger.debug(f"Failed to save point: {e}")
                 continue
         
