@@ -1,17 +1,17 @@
 # Urban Mobility Analysis Platform
 
-## 📋 Présentation du Projet
+##  Présentation du Projet
 
 **Urban Mobility Analysis Platform** est une application web complète permettant de visualiser et d'analyser des données de mobilité urbaine sur une carte interactive. Le système permet de traiter différents types de données de mobilité pour l'analyse des déplacements urbains.
 
-### 🎯 Objectifs
+###  Objectifs
 - Visualisation interactive des données GPS sur carte
 - Analyse des trajectoires et des déplacements
 - Filtrage avancé par type d'entité et vitesse moyenne
 - Calcul automatique des statistiques de mobilité
 - Gestion de multiples jeux de données
 
-### 🏗️ Architecture Technique
+###  Architecture Technique
 - **Frontend** : Angular 18 (TypeScript) avec Leaflet pour les cartes
 - **Backend** : Django 5.2 avec Django REST Framework
 - **Base de données** : PostgreSQL avec extensions spatiales (PostGIS)
@@ -19,14 +19,14 @@
   - Traces GPS (points de localisation)
   - Trajectoires (séquences de points)
 
-## 🚀 Installation et Lancement
+##  Installation et Lancement
 
 ### Prérequis Système
 - **Python 3.10+** avec Conda/Anaconda
 - **Node.js 18+** et npm
 - **PostgreSQL 14+** avec PostGIS
 
-### 📦 Installation du Backend (Django)
+###  Installation du Backend (Django)
 
 #### 1. Configuration de l'environnement Conda
 ```bash
@@ -69,7 +69,7 @@ python manage.py migrate
 python manage.py runserver
 ```
 
-### 🎨 Installation du Frontend (Angular)
+###  Installation du Frontend (Angular)
 
 #### 1. Installation des dépendances Node.js
 ```bash
@@ -111,7 +111,7 @@ ng serve
 - Jeux de données : `GET /api/datasets/`
 - Import de données : `POST /api/import/start_import/`
 
-## 🗂️ Structure du Projet
+##  Structure du Projet
 
 ```
 TAI/
