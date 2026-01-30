@@ -4,7 +4,6 @@ import { RouterOutlet } from '@angular/router';
 import { Map } from './map/map';
 import { Topbar } from './topbar/topbar';
 import { Sidebar } from './sidebar/sidebar';
-import { ODPair } from './interfaces/od';
 import { EntityStatistics, Dataset } from './interfaces/gps';
 import { Gps } from './services/gps';
 import { FilterState } from './filter-panel/filter-panel';
@@ -19,25 +18,7 @@ import { FilterState } from './filter-panel/filter-panel';
 export class App implements OnInit {
   @ViewChild(Map) mapComponent!: Map;
 
-  odPairs: ODPair[] = [
-    {
-      origin: { name: 'Tour Eiffel', lat: 48.8584, lng: 2.2945 },
-      destination: { name: 'Louvre', lat: 48.8606, lng: 2.3376 },
-    },
-    {
-      origin: { name: 'Gare du Nord', lat: 48.8809, lng: 2.3553 },
-      destination: { name: 'Montparnasse', lat: 48.8400, lng: 2.3200 },
-    },
-    {
-      origin: { name: 'La Défense', lat: 48.8924, lng: 2.2369 },
-      destination: { name: 'Champs-Élysées', lat: 48.8698, lng: 2.3073 },
-    },
-  ];
-
-  // Index sélectionné (null = afficher toutes les paires)
-  selectedIndex: number | null = null;
-  
-  // Entities (taxis, vehicles, etc.)
+  // Entities (vehicles, taxis, bikes, etc.)
   entities: EntityStatistics[] = [];
   selectedEntity: string | null = null;
 
@@ -92,6 +73,11 @@ export class App implements OnInit {
    * Load entities for the current dataset
    */
   private loadEntities(): void {
+    if (!this.currentDatasetId) {
+      this.entities = [];
+      return;
+    }
+
     this.gps.getEntities({ 
       dataset: this.currentDatasetId, 
       min_points: 10,
@@ -101,19 +87,15 @@ export class App implements OnInit {
         console.log('Entities loaded:', entities.length);
         this.entities = entities;
       },
-      error: err => console.error('Failed to load entities:', err)
+      error: err => {
+        console.error('Failed to load entities:', err);
+        this.entities = [];
+      }
     });
   }
 
   /**
-   * Handler called by Sidebar when user selects an OD pair
-   */
-  setSelectedIndex(index: number | null) {
-    this.selectedIndex = index;
-  }
-
-  /**
-   * Handler called by Sidebar when user selects an entity (taxi)
+   * Handler called when user selects an entity
    * This triggers trajectory rendering in the map
    */
   setSelectedEntity(entityId: string | null) {
@@ -131,15 +113,6 @@ export class App implements OnInit {
     
     console.log('Dataset changed:', dataset?.name);
 
-    // Center map based on dataset geographic scope
-    if (dataset && this.mapComponent) {
-      if (dataset.geographic_scope?.toLowerCase().includes('paris')) {
-        this.mapComponent.centerOnParis();
-      } else if (dataset.geographic_scope?.toLowerCase().includes('beijing')) {
-        this.mapComponent.centerOnBeijing();
-      }
-    }
-
     // Reset filters when dataset changes
     this.entityTypeFilter = null;
     this.minSpeedFilter = null;
@@ -147,6 +120,24 @@ export class App implements OnInit {
     
     // Load entities for new dataset
     this.loadEntities();
+  }
+
+  /**
+   * Handler for dataset deletion
+   */
+  onDatasetDeleted(datasetId: string): void {
+    console.log('Dataset deleted:', datasetId);
+    
+    // Clear current selection if deleted dataset was selected
+    if (this.currentDatasetId === datasetId) {
+      this.currentDataset = null;
+      this.currentDatasetId = undefined;
+      this.selectedEntity = null;
+      this.entities = [];
+    }
+    
+    // Reload datasets
+    this.loadDatasets();
   }
 
   /**

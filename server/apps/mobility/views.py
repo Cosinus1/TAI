@@ -203,6 +203,50 @@ class DatasetViewSet(viewsets.ModelViewSet):
         dataset.save()
         return Response({'status': 'Dataset activated'})
 
+    def destroy(self, request, pk=None):
+        """
+        Delete a dataset and all associated data.
+        This will cascade delete all GPS points, trajectories, and import jobs.
+        """
+        try:
+            dataset = self.get_object()
+            dataset_name = dataset.name
+            
+            # Count associated records before deletion
+            from apps.mobility.models import GPSPoint, Trajectory, ImportJob
+            
+            point_count = GPSPoint.objects.filter(dataset=dataset).count()
+            trajectory_count = Trajectory.objects.filter(dataset=dataset).count()
+            job_count = ImportJob.objects.filter(dataset=dataset).count()
+            
+            logger.info(f"Deleting dataset '{dataset_name}' (ID: {pk})")
+            logger.info(f"  - GPS Points: {point_count}")
+            logger.info(f"  - Trajectories: {trajectory_count}")
+            logger.info(f"  - Import Jobs: {job_count}")
+            
+            # Delete the dataset (cascade will handle related records)
+            dataset.delete()
+            
+            logger.info(f"Successfully deleted dataset '{dataset_name}'")
+            
+            return Response(
+                {
+                    'message': f'Dataset "{dataset_name}" deleted successfully',
+                    'deleted_records': {
+                        'points': point_count,
+                        'trajectories': trajectory_count,
+                        'jobs': job_count
+                    }
+                },
+                status=status.HTTP_200_OK
+            )
+            
+        except Exception as e:
+            logger.error(f"Failed to delete dataset {pk}: {str(e)}", exc_info=True)
+            return Response(
+                {'error': f'Failed to delete dataset: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 # ============================================================================
 # GPS Points ViewSet - Enhanced with filtering

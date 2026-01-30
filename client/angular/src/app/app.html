@@ -5,8 +5,6 @@
   <!-- container map : prend tout l'espace restant -->
   <main class="map-container">
     <app-map
-      [odPairs]="odPairs"
-      [selectedIndex]="selectedIndex"
       [selectedEntity]="selectedEntity"
       [datasetId]="currentDatasetId"
       [entityTypeFilter]="entityTypeFilter">
@@ -15,10 +13,8 @@
 
   <aside id="sidebar">
     <app-sidebar
-      [odPairs]="odPairs"
       [entities]="entities"
-      (odChange)="setSelectedIndex($event)"
-      (taxiChange)="setSelectedEntity($event)"
+      (entityChange)="setSelectedEntity($event)"
       (datasetChange)="onDatasetChange($event)"
       (filterChange)="onFilterChange($event)"
       (apply)="onApplyFilters()"

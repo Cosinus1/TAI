@@ -1,27 +1,7 @@
 <div class="top-bar">
-  <button
-    type="button"
-    (click)="setMode('default')"
-    [class.active]="mode() === 'default'">
-    Mode normal
-  </button>
-
-  <button
-    type="button"
-    (click)="setMode('od')"
-    [class.active]="mode() === 'od'">
-    Mode OD
-  </button>
-
-  <button
-    type="button"
-    (click)="setMode('gps')"
-    [class.active]="mode() === 'gps'">
-    Mode GPS
-  </button>
-
+  <h2 class="app-title">Urban Mobility Analysis</h2>
+  
   <button class="btn-upload" (click)="openUploadModal()">
-    📤 Importer des données
+    Importer un set
   </button>
-
 </div>

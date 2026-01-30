@@ -1,25 +1,28 @@
+// client/angular/src/app/services/mode.ts
 import { Injectable, signal } from '@angular/core';
 
+export type AppMode = 'gps';
+
 @Injectable({
-  providedIn: 'root',
+  providedIn: 'root'
 })
 export class Mode {
-    // le mode vaut soit 'default' soit 'od'
-  readonly mode = signal<'default' | 'od' | 'gps'>('default');
-
-  setMode(mode: 'default' | 'od' | 'gps') {
-    this.mode.set(mode);
+  // Always set to 'gps' mode
+  mode = signal<AppMode>('gps');
+  
+  constructor() {
+    // Initialize to GPS mode
+    this.mode.set('gps');
   }
-
-  toggleOd() {
-    this.mode.update(current =>
-      current === 'od' ? 'default' : 'od'
-    );
+  
+  // Keep method signature for backward compatibility
+  // but always sets to 'gps'
+  setMode(mode: AppMode) {
+    this.mode.set('gps');
   }
-
-  toggleGps() {
-    this.mode.update(current =>
-      current === 'gps' ? 'default' : 'gps'
-    );
+  
+  // Helper to check if in GPS mode (always true)
+  isGPSMode(): boolean {
+    return true;
   }
 }
