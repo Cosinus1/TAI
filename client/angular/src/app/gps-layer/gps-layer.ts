@@ -21,6 +21,7 @@ export class GpsLayer implements OnChanges {
   @Input() map!: L.Map | null;
   @Input() datasetId: string | null = null;
   @Input() selectedEntity: string | null = null;
+  @Input() selectedEntityIds: string[] = [];  // Multiple entity selection
   @Input() entityTypeFilter?: string | null = null;
 
   // ===== Leaflet layers =====
@@ -67,7 +68,10 @@ export class GpsLayer implements OnChanges {
       format: 'geojson'
     };
 
-    if (this.selectedEntity) {
+    // Use multiple entity IDs if available, otherwise single entity
+    if (this.selectedEntityIds && this.selectedEntityIds.length > 0) {
+      params.entity_ids = this.selectedEntityIds.join(',');
+    } else if (this.selectedEntity) {
       params.entity_id = this.selectedEntity;
     }
 
@@ -101,7 +105,10 @@ export class GpsLayer implements OnChanges {
       format: 'geojson'
     };
 
-    if (this.selectedEntity) {
+    // Use multiple entity IDs if available, otherwise single entity
+    if (this.selectedEntityIds && this.selectedEntityIds.length > 0) {
+      params.entity_ids = this.selectedEntityIds.join(',');
+    } else if (this.selectedEntity) {
       params.entity_id = this.selectedEntity;
     }
 

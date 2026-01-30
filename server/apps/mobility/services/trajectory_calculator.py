@@ -159,7 +159,7 @@ class TrajectoryCalculator:
                     'duration_seconds': int(duration),
                     'point_count': len(points),
                     'total_distance_meters': total_distance,
-                    'avg_speed_kmh': avg_speed,
+                    'avg_speed': avg_speed,
                     'max_speed_kmh': max_speed,
                     'geom': geom,
                     'metrics': {

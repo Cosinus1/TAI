@@ -20,6 +20,7 @@ export class Map implements AfterViewInit {
 
   // Filter inputs
   @Input() entityTypeFilter?: string | null = null;
+  @Input() selectedEntityIds: string[] = [];  // Multiple entity selection
 
   // Map center configuration
   @Input() centerLat: number = 48.8566; // Paris by default

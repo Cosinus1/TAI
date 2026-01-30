@@ -9,6 +9,7 @@ export interface FilterState {
   entityTypes: string[];
   selectedEntityType: string | null;
   selectedEntityId: string | null;
+  selectedEntityIds: string[];  // Multiple entity selection
   minSpeed: number | null;
   maxSpeed: number | null;
   startTime: string | null;
@@ -38,6 +39,7 @@ export class FilterPanel implements OnInit, OnChanges {
   // Entity selection
   allEntities = signal<EntityStatistics[]>([]);
   selectedEntityId = signal<string | null>(null);
+  selectedEntityIds = signal<string[]>([]);  // Multiple entity selection
   entitiesLoading = signal<boolean>(false);
   
   // Computed: filtered entities based on selected entity type
@@ -171,6 +173,46 @@ export class FilterPanel implements OnInit, OnChanges {
     this.emitFilterChange();
   }
 
+  // Entity toggle methods
+  toggleEntity(entityId: string): void {
+    const currentIds = this.selectedEntityIds();
+    if (currentIds.includes(entityId)) {
+      // Remove entity
+      this.selectedEntityIds.set(currentIds.filter(id => id !== entityId));
+    } else {
+      // Add entity
+      this.selectedEntityIds.set([...currentIds, entityId]);
+    }
+    this.emitFilterChange();
+  }
+
+  toggleAllEntities(): void {
+    const currentIds = this.selectedEntityIds();
+    const filteredEntities = this.filteredEntities();
+    
+    if (currentIds.length === filteredEntities.length) {
+      // All are selected, so deselect all
+      this.selectedEntityIds.set([]);
+    } else {
+      // Select all filtered entities
+      this.selectedEntityIds.set(filteredEntities.map(e => e.entity_id));
+    }
+    this.emitFilterChange();
+  }
+
+  isEntitySelected(entityId: string): boolean {
+    return this.selectedEntityIds().includes(entityId);
+  }
+
+  getSelectedCount(): number {
+    return this.selectedEntityIds().length;
+  }
+
+  clearSelectedEntities(): void {
+    this.selectedEntityIds.set([]);
+    this.emitFilterChange();
+  }
+
   emitFilterChange(): void {
     this.filterChange.emit(this.getCurrentFilters());
   }
@@ -180,6 +222,7 @@ export class FilterPanel implements OnInit, OnChanges {
       entityTypes: this.entityTypes(),
       selectedEntityType: this.selectedEntityType(),
       selectedEntityId: this.selectedEntityId(),
+      selectedEntityIds: this.selectedEntityIds(),
       minSpeed: this.minSpeed(),
       maxSpeed: this.maxSpeed(),
       startTime: this.startTime(),

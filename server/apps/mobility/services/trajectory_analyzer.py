@@ -330,12 +330,12 @@ class TrajectoryAnalyzer:
                     'duration_hours': (traj.get_end_time() - traj.get_start_time()).total_seconds() / 3600,
                     'start_time': traj.get_start_time(),
                     'end_time': traj.get_end_time(),
-                    'avg_speed_kmh': 0
+                    'avg_speed': 0
                 }
                 
                 # Calculate average speed
                 if traj_metrics['duration_hours'] > 0:
-                    traj_metrics['avg_speed_kmh'] = traj_metrics['distance_km'] / traj_metrics['duration_hours']
+                    traj_metrics['avg_speed'] = traj_metrics['distance_km'] / traj_metrics['duration_hours']
                 
                 metrics['total_points'] += traj_metrics['points_count']
                 metrics['total_distance_km'] += traj_metrics['distance_km']

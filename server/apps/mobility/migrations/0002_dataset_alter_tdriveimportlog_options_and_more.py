@@ -421,7 +421,7 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
-                    "avg_speed_kmh",
+                    "avg_speed",
                     models.FloatField(blank=True, help_text="Average speed", null=True),
                 ),
                 (

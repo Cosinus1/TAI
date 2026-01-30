@@ -37,10 +37,27 @@
         type="button" 
         class="btn-action btn-clear"
         (click)="clearSelection()">
-        ✕ Clear Selection
+        ✕ Clear Single Selection
       </button>
     }
   </div>
+
+  <!-- Selected Entities Info -->
+  @if (currentFilters()?.selectedEntityIds && currentFilters()!.selectedEntityIds.length > 0) {
+    <div class="selected-entities-info">
+      <div class="selected-count">
+        📍 {{ currentFilters()!.selectedEntityIds.length }} entity{{ currentFilters()!.selectedEntityIds.length > 1 ? 's' : '' }} selected
+      </div>
+      <div class="selected-actions">
+        <button 
+          type="button" 
+          class="btn-action btn-small"
+          (click)="onResetFilters()">
+          ✕ Clear All
+        </button>
+      </div>
+    </div>
+  }
 
   <!-- Statistics Panel -->
   @if (showStats() && currentDataset()) {

@@ -56,6 +56,12 @@ export class Sidebar {
   onFilterChange(filters: FilterState) {
     this.currentFilters.set(filters);
     this.filterChange.emit(filters);
+    
+    // Update single entity selection if filter panel changed it
+    if (filters.selectedEntityId !== undefined) {
+      this.selectedEntity.set(filters.selectedEntityId);
+      this.entityChange.emit(filters.selectedEntityId);
+    }
   }
 
   /**
@@ -125,7 +131,7 @@ export class Sidebar {
     if (this.isValidSpeed(filters.minSpeed)) {
       filtered = filtered.filter(e => {
         // Exclude entities without speed data
-        const speed = e.avg_speed_kmh || e.avg_speed_kmh;
+        const speed = e.avg_speed || e.avg_speed;
         if (!this.isValidSpeed(speed)) {
           return false;
         }
@@ -137,7 +143,7 @@ export class Sidebar {
     if (this.isValidSpeed(filters.maxSpeed)) {
       filtered = filtered.filter(e => {
         // Exclude entities without speed data
-        const speed = e.avg_speed_kmh || e.avg_speed_kmh;
+        const speed = e.avg_speed || e.avg_speed;
         if (!this.isValidSpeed(speed)) {
           return false;
         }
@@ -164,7 +170,7 @@ export class Sidebar {
    */
   getEntitiesWithSpeedData(): number {
     return this.entities.filter(e => {
-      const speed = e.avg_speed_kmh || e.avg_speed_kmh;
+      const speed = e.avg_speed || e.avg_speed;
       return this.isValidSpeed(speed);
     }).length;
   }
@@ -175,7 +181,7 @@ export class Sidebar {
    */
   getEntitiesWithoutSpeedData(): number {
     return this.entities.filter(e => {
-      const speed = e.avg_speed_kmh || e.avg_speed_kmh;
+      const speed = e.avg_speed || e.avg_speed;
       return !this.isValidSpeed(speed);
     }).length;
   }

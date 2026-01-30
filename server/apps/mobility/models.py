@@ -272,7 +272,7 @@ class Trajectory(gis_models.Model):
         blank=True,
         help_text="Total distance traveled"
     )
-    avg_speed_kmh = models.FloatField(
+    avg_speed = models.FloatField(
         null=True,
         blank=True,
         help_text="Average speed"
@@ -543,7 +543,7 @@ class TDriveTrajectory(gis_models.Model):
     point_count = models.IntegerField()
     total_distance_meters = models.FloatField(null=True, blank=True)
     duration_seconds = models.IntegerField(null=True, blank=True)
-    avg_speed_kmh = models.FloatField(null=True, blank=True)
+    avg_speed = models.FloatField(null=True, blank=True)
     geom = gis_models.LineStringField(srid=4326, null=True, blank=True)
     bbox_geom = gis_models.PolygonField(srid=4326, null=True, blank=True)
     created_at = models.DateTimeField(default=timezone.now)

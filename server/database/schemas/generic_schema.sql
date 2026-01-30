@@ -119,7 +119,7 @@ CREATE TABLE IF NOT EXISTS mobility_trajectory (
     -- Statistics
     point_count INTEGER NOT NULL,
     total_distance_meters DOUBLE PRECISION,
-    avg_speed_kmh DOUBLE PRECISION,
+    avg_speed DOUBLE PRECISION,
     max_speed_kmh DOUBLE PRECISION,
     
     -- Geometry
@@ -251,7 +251,7 @@ SELECT
     MIN(timestamp) AS first_seen,
     MAX(timestamp) AS last_seen,
     COUNT(DISTINCT DATE(timestamp)) AS active_days,
-    AVG(speed) AS avg_speed_kmh,
+    AVG(speed) AS avg_speed,
     ST_Envelope(ST_Collect(geom)) AS movement_bbox
 FROM mobility_gpspoint
 WHERE is_valid = TRUE

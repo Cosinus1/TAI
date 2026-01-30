@@ -304,9 +304,17 @@ class GPSPointViewSet(viewsets.ModelViewSet):
         if dataset_id:
             queryset = queryset.filter(dataset_id=dataset_id)
         
+        # Single entity filter
         entity_id = self.request.query_params.get('entity_id')
         if entity_id:
             queryset = queryset.filter(entity_id=entity_id)
+        
+        # Multiple entity filter (comma-separated)
+        entity_ids = self.request.query_params.get('entity_ids')
+        if entity_ids:
+            entity_id_list = [eid.strip() for eid in entity_ids.split(',') if eid.strip()]
+            if entity_id_list:
+                queryset = queryset.filter(entity_id__in=entity_id_list)
         
         # Filter by entity type (from extra_attributes or entity_id prefix)
         entity_type = self.request.query_params.get('entity_type')

@@ -315,7 +315,7 @@ class EnhancedTrajectoryCalculator:
                     'longitude': avg_lon,
                     'latitude': avg_lat,
                     'distance_meters': distance,
-                    'avg_speed_kmh': (distance / time_gap) * 3.6 if time_gap > 0 else 0,
+                    'avg_speed': (distance / time_gap) * 3.6 if time_gap > 0 else 0,
                     'is_stop': True
                 }
                 stop_points.append(stop_point)
@@ -377,7 +377,7 @@ class EnhancedTrajectoryCalculator:
         
         # Calculate statistics
         if metrics['speeds_kmh']:
-            metrics['avg_speed_kmh'] = np.mean(metrics['speeds_kmh'])
+            metrics['avg_speed'] = np.mean(metrics['speeds_kmh'])
             metrics['max_speed_kmh'] = np.max(metrics['speeds_kmh'])
             metrics['min_speed_kmh'] = np.min(metrics['speeds_kmh'])
             metrics['speed_std_kmh'] = np.std(metrics['speeds_kmh'])
@@ -418,7 +418,7 @@ class EnhancedTrajectoryCalculator:
             
             # Calculate basic metrics
             total_distance = enhanced_metrics.get('total_distance_meters', 0)
-            avg_speed = enhanced_metrics.get('avg_speed_kmh', None)
+            avg_speed = enhanced_metrics.get('avg_speed', None)
             max_speed = enhanced_metrics.get('max_speed_kmh', None)
             
             # Create or update trajectory
@@ -432,7 +432,7 @@ class EnhancedTrajectoryCalculator:
                     'duration_seconds': int(duration),
                     'point_count': len(points),
                     'total_distance_meters': total_distance,
-                    'avg_speed_kmh': avg_speed,
+                    'avg_speed': avg_speed,
                     'max_speed_kmh': max_speed,
                     'geom': geom,
                     'metrics': {
@@ -491,7 +491,7 @@ class EnhancedTrajectoryCalculator:
                     'end_time': trajectory.end_time,
                     'duration_seconds': trajectory.duration_seconds,
                     'total_distance_meters': trajectory.total_distance_meters,
-                    'avg_speed_kmh': trajectory.avg_speed_kmh,
+                    'avg_speed': trajectory.avg_speed,
                     'max_speed_kmh': trajectory.max_speed_kmh,
                     'metrics': trajectory.metrics
                 },
@@ -588,7 +588,7 @@ class EnhancedTrajectoryCalculator:
             'longitude': centroid_lon,
             'latitude': centroid_lat,
             'point_count': len(stop_data['points_in_stop']),
-            'avg_speed_kmh': 0,  # Stopped
+            'avg_speed': 0,  # Stopped
             'is_stop': True,
             'stop_type': 'within_trajectory'
         }

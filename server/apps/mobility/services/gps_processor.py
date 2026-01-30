@@ -370,7 +370,7 @@ class GPSProcessor:
             
             # Calculate basic statistics
             features['total_distance_km'] = trajectory.total_distance(move_df) / 1000
-            features['avg_speed_kmh'] = trajectory.average_speed(move_df) * 3.6
+            features['avg_speed'] = trajectory.average_speed(move_df) * 3.6
             features['max_speed_kmh'] = trajectory.max_speed(move_df) * 3.6
             
             # Calculate movement metrics
@@ -442,7 +442,7 @@ class GPSProcessor:
                     speeds.append(speed_kmh)
             
             features['total_distance_km'] = total_distance
-            features['avg_speed_kmh'] = np.mean(speeds) if speeds else 0
+            features['avg_speed'] = np.mean(speeds) if speeds else 0
             features['max_speed_kmh'] = np.max(speeds) if speeds else 0
             features['std_speed_kmh'] = np.std(speeds) if speeds else 0
             

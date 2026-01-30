@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS datasets.tdrive_trajectories (
     point_count INTEGER NOT NULL,
     total_distance_meters DOUBLE PRECISION,
     duration_seconds INTEGER,
-    avg_speed_kmh DOUBLE PRECISION,
+    avg_speed DOUBLE PRECISION,
     
     -- Géométrie de la trajectoire complète
     geom GEOMETRY(LineString, 4326),

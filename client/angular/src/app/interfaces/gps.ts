@@ -87,7 +87,7 @@ export interface Trajectory {
   duration_seconds?: number;
   point_count: number;
   total_distance_meters?: number;
-  avg_speed_kmh?: number;
+  avg_speed?: number;
   max_speed_kmh?: number;
   metrics?: Record<string, any>;
   created_at: string;
@@ -168,9 +168,9 @@ export interface EntityStatistics {
   active_days: number;
   avg_points_per_day: number;
   total_distance_meters?: number;
-  avg_speed_kmh?: number;
-  max_speed_kmh?: number;
-  min_speed_kmh?: number;
+  avg_speed?: number;  // Server returns avg_speed (not avg_speed_kmh)
+  max_speed?: number;  // Server returns max_speed (not max_speed_kmh)
+  min_speed?: number;  // Server returns min_speed (not min_speed_kmh)
   total_trajectories?: number;
   avg_trajectory_distance?: number;
 }

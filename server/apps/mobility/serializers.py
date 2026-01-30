@@ -251,7 +251,7 @@ class TrajectoryGeoJSONSerializer(serializers.ModelSerializer):
             'duration_seconds': obj.duration_seconds,
             'point_count': obj.point_count,
             'total_distance_meters': obj.total_distance_meters,
-            'avg_speed_kmh': obj.avg_speed_kmh,
+            'avg_speed': obj.avg_speed,
             'max_speed_kmh': obj.max_speed_kmh,
             'metrics': obj.metrics,
             'created_at': obj.created_at.isoformat() if obj.created_at else None
@@ -269,7 +269,7 @@ class TrajectoryListSerializer(serializers.ModelSerializer):
             'trajectory_date',
             'point_count',
             'total_distance_meters',
-            'avg_speed_kmh',
+            'avg_speed',
             'duration_seconds'
         ]
 
@@ -610,7 +610,7 @@ class EntityStatisticsSerializer(serializers.Serializer):
     active_days = serializers.IntegerField()
     avg_points_per_day = serializers.FloatField()
     total_distance_meters = serializers.FloatField(required=False, allow_null=True)
-    avg_speed = serializers.FloatField(required=False, allow_null=True)  # FIX: Changed from avg_speed_kmh to avg_speed
+    avg_speed = serializers.FloatField(required=False, allow_null=True)  # FIX: Changed from avg_speed to avg_speed
     
     # Optional trajectory statistics
     total_trajectories = serializers.IntegerField(required=False, allow_null=True)

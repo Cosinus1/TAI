@@ -72,7 +72,7 @@ class Migration(migrations.Migration):
                 ('point_count', models.IntegerField(help_text='Nombre de points GPS')),
                 ('total_distance_meters', models.FloatField(blank=True, help_text='Distance totale en mètres', null=True)),
                 ('duration_seconds', models.IntegerField(blank=True, help_text='Durée en secondes', null=True)),
-                ('avg_speed_kmh', models.FloatField(blank=True, help_text='Vitesse moyenne en km/h', null=True)),
+                ('avg_speed', models.FloatField(blank=True, help_text='Vitesse moyenne en km/h', null=True)),
                 ('geom', django.contrib.gis.db.models.fields.LineStringField(blank=True, help_text='Géométrie LineString de la trajectoire', null=True, srid=4326)),
                 ('bbox_geom', django.contrib.gis.db.models.fields.PolygonField(blank=True, help_text='Bounding box de la trajectoire', null=True, srid=4326)),
                 ('created_at', models.DateTimeField(default=django.utils.timezone.now, help_text='Date de création')),
