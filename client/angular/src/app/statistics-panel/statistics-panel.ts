@@ -19,6 +19,8 @@ export class StatisticsPanel implements OnChanges {
   statistics = signal<ExtendedDatasetStatistics | null>(null);
   loading = signal<boolean>(false);
   error = signal<string | null>(null);
+  
+  Math = Math;
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['datasetId'] && this.datasetId) {
@@ -70,5 +72,25 @@ export class StatisticsPanel implements OnChanges {
   formatNumber(value: number | null | undefined): string {
     if (value === null || value === undefined) return 'N/A';
     return value.toLocaleString();
+  }
+  
+  calculateDuration(dateRange: any): string {
+    if (!dateRange?.start || !dateRange?.end) return 'N/A';
+    
+    const start = new Date(dateRange.start);
+    const end = new Date(dateRange.end);
+    const diffMs = end.getTime() - start.getTime();
+    
+    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    
+    if (days > 0) {
+      return `${days}d ${hours}h`;
+    } else if (hours > 0) {
+      return `${hours}h`;
+    } else {
+      const minutes = Math.floor(diffMs / (1000 * 60));
+      return `${minutes}m`;
+    }
   }
 }
