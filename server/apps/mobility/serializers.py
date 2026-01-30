@@ -77,7 +77,7 @@ class DatasetListSerializer(serializers.ModelSerializer):
 # GPS Point Serializers
 # ============================================================================
 
-class GPSPointGeoJSONSerializer(GeoFeatureModelSerializer):
+class GPSPointGeoJSONSerializer(serializers.ModelSerializer):
     """
     GeoJSON serializer for GPS points.
     
@@ -89,27 +89,55 @@ class GPSPointGeoJSONSerializer(GeoFeatureModelSerializer):
     }
     """
     
-    dataset_name = serializers.CharField(source='dataset.name', read_only=True)
+    type = serializers.SerializerMethodField()
+    geometry = serializers.SerializerMethodField()
+    properties = serializers.SerializerMethodField()
     
     class Meta:
         model = GPSPoint
-        geo_field = 'geom'
         fields = [
             'id',
-            'dataset',
-            'dataset_name',
-            'entity_id',
-            'timestamp',
-            'longitude',
-            'latitude',
-            'altitude',
-            'accuracy',
-            'speed',
-            'heading',
-            'is_valid',
-            'extra_attributes'
+            'type',
+            'geometry',
+            'properties'
         ]
-        read_only_fields = ['id', 'dataset_name']
+        read_only_fields = ['id', 'type', 'geometry', 'properties']
+    
+    def get_type(self, obj):
+        return "Feature"
+    
+    def get_geometry(self, obj):
+        """Return GeoJSON geometry object."""
+        if obj.geom:
+            # Convert Django GIS geometry to GeoJSON
+            return {
+                'type': 'Point',
+                'coordinates': [obj.geom.x, obj.geom.y]
+            }
+        elif obj.longitude and obj.latitude:
+            # Fallback to longitude/latitude fields
+            return {
+                'type': 'Point',
+                'coordinates': [obj.longitude, obj.latitude]
+            }
+        return None
+    
+    def get_properties(self, obj):
+        """Return feature properties."""
+        return {
+            'dataset': str(obj.dataset.id),
+            'dataset_name': obj.dataset.name,
+            'entity_id': obj.entity_id,
+            'timestamp': obj.timestamp.isoformat() if obj.timestamp else None,
+            'longitude': obj.longitude,
+            'latitude': obj.latitude,
+            'altitude': obj.altitude,
+            'accuracy': obj.accuracy,
+            'speed': obj.speed,
+            'heading': obj.heading,
+            'is_valid': obj.is_valid,
+            'extra_attributes': obj.extra_attributes
+        }
 
 
 class GPSPointListSerializer(serializers.ModelSerializer):
@@ -171,7 +199,7 @@ class GPSPointCreateSerializer(serializers.ModelSerializer):
 # Trajectory Serializers
 # ============================================================================
 
-class TrajectoryGeoJSONSerializer(GeoFeatureModelSerializer):
+class TrajectoryGeoJSONSerializer(serializers.ModelSerializer):
     """
     GeoJSON serializer for trajectories.
     
@@ -183,28 +211,51 @@ class TrajectoryGeoJSONSerializer(GeoFeatureModelSerializer):
     }
     """
     
-    dataset_name = serializers.CharField(source='dataset.name', read_only=True)
+    type = serializers.SerializerMethodField()
+    geometry = serializers.SerializerMethodField()
+    properties = serializers.SerializerMethodField()
     
     class Meta:
         model = Trajectory
-        geo_field = 'geom'
         fields = [
             'id',
-            'dataset',
-            'dataset_name',
-            'entity_id',
-            'trajectory_date',
-            'start_time',
-            'end_time',
-            'duration_seconds',
-            'point_count',
-            'total_distance_meters',
-            'avg_speed_kmh',
-            'max_speed_kmh',
-            'metrics',
-            'created_at'
+            'type',
+            'geometry',
+            'properties'
         ]
-        read_only_fields = ['id', 'dataset_name', 'created_at']
+        read_only_fields = ['id', 'type', 'geometry', 'properties']
+    
+    def get_type(self, obj):
+        return "Feature"
+    
+    def get_geometry(self, obj):
+        """Return GeoJSON geometry object."""
+        if obj.geom:
+            # Convert Django GIS LineString geometry to GeoJSON
+            # geom.coords returns list of (x, y) tuples
+            return {
+                'type': 'LineString',
+                'coordinates': list(obj.geom.coords)
+            }
+        return None
+    
+    def get_properties(self, obj):
+        """Return feature properties."""
+        return {
+            'dataset': str(obj.dataset.id),
+            'dataset_name': obj.dataset.name,
+            'entity_id': obj.entity_id,
+            'trajectory_date': obj.trajectory_date.isoformat() if obj.trajectory_date else None,
+            'start_time': obj.start_time.isoformat() if obj.start_time else None,
+            'end_time': obj.end_time.isoformat() if obj.end_time else None,
+            'duration_seconds': obj.duration_seconds,
+            'point_count': obj.point_count,
+            'total_distance_meters': obj.total_distance_meters,
+            'avg_speed_kmh': obj.avg_speed_kmh,
+            'max_speed_kmh': obj.max_speed_kmh,
+            'metrics': obj.metrics,
+            'created_at': obj.created_at.isoformat() if obj.created_at else None
+        }
 
 
 class TrajectoryListSerializer(serializers.ModelSerializer):

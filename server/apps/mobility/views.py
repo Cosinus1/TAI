@@ -43,6 +43,7 @@ from apps.mobility.services.generic_importer import (
     MobilityDataImporter,
     TDriveImporter
 )
+from apps.mobility.services.enhanced_trajectory_calculator import EnhancedTrajectoryCalculator
 
 logger = logging.getLogger(__name__)
 
@@ -261,11 +262,39 @@ class GPSPointViewSet(viewsets.ModelViewSet):
     pagination_class = StandardPagination
     
     def get_serializer_class(self):
-        if self.action == 'list':
-            return GPSPointListSerializer
+        # Check for format=geojson parameter
+        format_param = self.request.query_params.get('format', '').lower()
+        if format_param == 'geojson' or self.action != 'list':
+            return GPSPointGeoJSONSerializer
         elif self.action == 'create':
             return GPSPointCreateSerializer
-        return GPSPointGeoJSONSerializer
+        return GPSPointListSerializer
+    
+    def list(self, request, *args, **kwargs):
+        """Handle list action with optional GeoJSON format."""
+        format_param = request.query_params.get('format', '').lower()
+        
+        if format_param == 'geojson':
+            # Return GeoJSON FeatureCollection
+            queryset = self.filter_queryset(self.get_queryset())
+            page = self.paginate_queryset(queryset)
+            if page is not None:
+                serializer = GPSPointGeoJSONSerializer(page, many=True)
+                # Wrap features in FeatureCollection
+                return Response({
+                    'type': 'FeatureCollection',
+                    'features': serializer.data
+                })
+            
+            serializer = GPSPointGeoJSONSerializer(queryset, many=True)
+            # Wrap features in FeatureCollection
+            return Response({
+                'type': 'FeatureCollection',
+                'features': serializer.data
+            })
+        
+        # Default behavior for other formats
+        return super().list(request, *args, **kwargs)
     
     def get_queryset(self):
         """Apply filters from query parameters."""
@@ -461,9 +490,37 @@ class TrajectoryViewSet(viewsets.ReadOnlyModelViewSet):
     pagination_class = StandardPagination
     
     def get_serializer_class(self):
-        if self.action == 'list':
-            return TrajectoryListSerializer
-        return TrajectoryGeoJSONSerializer
+        # Check for format=geojson parameter
+        format_param = self.request.query_params.get('format', '').lower()
+        if format_param == 'geojson' or self.action != 'list':
+            return TrajectoryGeoJSONSerializer
+        return TrajectoryListSerializer
+    
+    def list(self, request, *args, **kwargs):
+        """Handle list action with optional GeoJSON format."""
+        format_param = request.query_params.get('format', '').lower()
+        
+        if format_param == 'geojson':
+            # Return GeoJSON FeatureCollection
+            queryset = self.filter_queryset(self.get_queryset())
+            page = self.paginate_queryset(queryset)
+            if page is not None:
+                serializer = TrajectoryGeoJSONSerializer(page, many=True)
+                # Wrap features in FeatureCollection
+                return Response({
+                    'type': 'FeatureCollection',
+                    'features': serializer.data
+                })
+            
+            serializer = TrajectoryGeoJSONSerializer(queryset, many=True)
+            # Wrap features in FeatureCollection
+            return Response({
+                'type': 'FeatureCollection',
+                'features': serializer.data
+            })
+        
+        # Default behavior for other formats
+        return super().list(request, *args, **kwargs)
     
     def get_queryset(self):
         """Filter trajectories by query parameters."""
@@ -533,6 +590,180 @@ class TrajectoryViewSet(viewsets.ReadOnlyModelViewSet):
             'metrics': trajectory.metrics,
             'message': 'Advanced analysis not yet implemented'
         })
+    
+    @action(detail=True, methods=['get'])
+    def enhanced_analysis(self, request, pk=None):
+        """Get enhanced trajectory analysis with stop points."""
+        trajectory = self.get_object()
+        
+        try:
+            calculator = EnhancedTrajectoryCalculator(trajectory.dataset)
+            analysis = calculator.get_trajectory_with_stops(
+                trajectory.entity_id,
+                trajectory.trajectory_date
+            )
+            
+            if 'error' in analysis:
+                return Response(
+                    {'error': analysis['error']},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            return Response(analysis)
+            
+        except Exception as e:
+            logger.error(f"Error in enhanced trajectory analysis: {e}")
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['post'])
+    def calculate_enhanced(self, request):
+        """Calculate enhanced trajectories for a dataset or entity."""
+        dataset_id = request.data.get('dataset')
+        entity_id = request.data.get('entity_id')
+        
+        if not dataset_id:
+            return Response(
+                {'error': 'dataset parameter required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            dataset = Dataset.objects.get(id=dataset_id)
+        except Dataset.DoesNotExist:
+            return Response(
+                {'error': 'Dataset not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        try:
+            calculator = EnhancedTrajectoryCalculator(dataset)
+            
+            if entity_id:
+                stats = calculator.calculate_entity_enhanced_trajectories(entity_id)
+                message = f"Enhanced trajectories calculated for entity {entity_id}"
+            else:
+                stats = calculator.calculate_enhanced_trajectories()
+                message = "Enhanced trajectories calculated for all entities"
+            
+            return Response({
+                'message': message,
+                'stats': stats,
+                'dataset_id': str(dataset.id),
+                'dataset_name': dataset.name,
+                'entity_id': entity_id
+            })
+            
+        except Exception as e:
+            logger.error(f"Error calculating enhanced trajectories: {e}")
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['post'])
+    def calculate_speed_between_points(self, request):
+        """Calculate average speed between two GPS points."""
+        point1_id = request.data.get('point1_id')
+        point2_id = request.data.get('point2_id')
+        
+        if not point1_id or not point2_id:
+            return Response(
+                {'error': 'Both point1_id and point2_id are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            point1 = GPSPoint.objects.get(id=point1_id)
+            point2 = GPSPoint.objects.get(id=point2_id)
+            
+            calculator = EnhancedTrajectoryCalculator(point1.dataset)
+            speed = calculator.calculate_average_speed_between_points(point1, point2)
+            
+            if speed is None:
+                return Response({
+                    'error': 'Could not calculate speed (invalid points or time difference)'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            return Response({
+                'point1_id': point1_id,
+                'point2_id': point2_id,
+                'entity_id': point1.entity_id,
+                'timestamp1': point1.timestamp,
+                'timestamp2': point2.timestamp,
+                'average_speed_kmh': round(speed, 2),
+                'distance_meters': round(point1.geom.distance(point2.geom) * 111000, 2) if point1.geom and point2.geom else None,
+                'time_difference_seconds': (point2.timestamp - point1.timestamp).total_seconds()
+            })
+            
+        except GPSPoint.DoesNotExist:
+            return Response(
+                {'error': 'One or both points not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            logger.error(f"Error calculating speed between points: {e}")
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['post'])
+    def interpolate_trajectory(self, request):
+        """Interpolate trajectory points at regular intervals."""
+        entity_id = request.data.get('entity_id')
+        dataset_id = request.data.get('dataset')
+        date = request.data.get('date')
+        interval_seconds = request.data.get('interval_seconds', 60)
+        
+        if not entity_id or not dataset_id or not date:
+            return Response(
+                {'error': 'entity_id, dataset, and date parameters are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            dataset = Dataset.objects.get(id=dataset_id)
+            points = GPSPoint.objects.filter(
+                dataset=dataset,
+                entity_id=entity_id,
+                timestamp__date=date,
+                is_valid=True
+            ).order_by('timestamp')
+            
+            if len(points) < 2:
+                return Response({
+                    'error': 'Insufficient points for interpolation',
+                    'point_count': len(points)
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            calculator = EnhancedTrajectoryCalculator(dataset)
+            interpolated = calculator.interpolate_trajectory_points(
+                list(points), interval_seconds
+            )
+            
+            return Response({
+                'entity_id': entity_id,
+                'date': date,
+                'original_point_count': len(points),
+                'interpolated_point_count': len(interpolated),
+                'interval_seconds': interval_seconds,
+                'interpolated_points': interpolated
+            })
+            
+        except Dataset.DoesNotExist:
+            return Response(
+                {'error': 'Dataset not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            logger.error(f"Error interpolating trajectory: {e}")
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 # ============================================================================
