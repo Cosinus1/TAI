@@ -31,10 +31,23 @@
       title="Refresh datasets">
       🔄
     </button>
+
+    <button 
+      type="button" 
+      class="btn-delete"
+      (click)="deleteDataset()"
+      [disabled]="!selectedDataset() || deleting()"
+      title="Delete dataset">
+      🗑️
+    </button>
   </div>
 
   @if (error()) {
     <div class="error-message">{{ error() }}</div>
+  }
+
+  @if (deleteError()) {
+    <div class="error-message">{{ deleteError() }}</div>
   }
 
   @if (selectedDataset(); as dataset) {
