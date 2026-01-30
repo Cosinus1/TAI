@@ -1,7 +1,9 @@
-import { Component, signal } from '@angular/core';
+// client/angular/src/app/data-upload/data-upload.ts
+import { Component, signal, inject } from '@angular/core';
+import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { Upload } from '../services/upload';
 import { HttpEventType } from '@angular/common/http';
-import { inject } from '@angular/core';
+
 @Component({
   selector: 'app-data-upload',
   imports: [],
@@ -10,13 +12,13 @@ import { inject } from '@angular/core';
 })
 export class DataUpload {
   private upload = inject(Upload);
-
+  modal = inject(NgbActiveModal);
 
   selectedFormat = signal<string>('');
   showCustomFormat = signal<boolean>(false);
-  selectedFile = signal<File | null>(null);
+  selectedFiles = signal<File[]>([]);
   isUploading = signal<boolean>(false);
-  uploadProgress = signal<number>(0)
+  uploadProgress = signal<number>(0);
   uploadMessage = signal<string>('');
   uploadMessageType = signal<'success' | 'error'>('success');
 
@@ -35,7 +37,8 @@ export class DataUpload {
   onFileSelected(event: Event) {
     const target = event.target as HTMLInputElement;
     if (target.files?.length) {
-      this.selectedFile.set(target.files[0]);
+      const filesArray = Array.from(target.files);
+      this.selectedFiles.set(filesArray);
     }
   }
 
@@ -44,15 +47,13 @@ export class DataUpload {
     const value = target.value;
     
     this.selectedFormat.set(value);
-    
-    // Afficher le formulaire personnalisé si aucun format ou "custom"
     this.showCustomFormat.set(value === '' || value === 'custom');
   }
 
   getFormatPreview(): string {
     switch (this.selectedFormat()) {
       case 'tdrive':
-        return 'taxi_id, latitude, longitude, timestamp';
+        return 'taxi_id, timestamp, longitude, latitude';
       case 'csv':
         return 'latitude, longitude, timestamp';
       case 'custom':
@@ -62,7 +63,7 @@ export class DataUpload {
     }
   }
 
-    addColumn() {
+  addColumn() {
     const currentColumns = this.columns();
     const newId = this.nextColumnId();
     this.columns.set([...currentColumns, { id: newId, value: '' }]);
@@ -86,15 +87,31 @@ export class DataUpload {
   }
 
   submitUpload() {
-    const file = this.selectedFile();
-    if (!file || !this.selectedFormat() || !this.datasetName()) {
-      this.showError('Veuillez remplir tous les champs');
+    const files = this.selectedFiles();
+    if (files.length === 0 || !this.selectedFormat() || !this.datasetName()) {
+      this.showError('Veuillez remplir tous les champs et sélectionner au moins un fichier');
       return;
     }
 
     this.isUploading.set(true);
     this.uploadProgress.set(0);
-
+    
+    let filesUploaded = 0;
+    const totalFiles = files.length;
+    
+    this.uploadNextFile(files, 0, filesUploaded, totalFiles);
+  }
+  
+  private uploadNextFile(files: File[], index: number, filesUploaded: number, totalFiles: number) {
+    if (index >= files.length) {
+      this.showSuccess(`✅ Import réussi! ${filesUploaded}/${totalFiles} fichiers importés`);
+      this.resetForm();
+      this.isUploading.set(false);
+      return;
+    }
+    
+    const file = files[index];
+    
     this.upload.uploadTDriveFile(
       file,
       this.datasetName(),
@@ -103,22 +120,24 @@ export class DataUpload {
     ).subscribe({
       next: (event) => {
         if (event.type === HttpEventType.UploadProgress && event.total) {
-          this.uploadProgress.set(Math.round((event.loaded / event.total) * 100));
+          const fileProgress = Math.round((event.loaded / event.total) * 100);
+          const totalProgress = Math.round(((index + fileProgress/100) / totalFiles) * 100);
+          this.uploadProgress.set(totalProgress);
         } else if (event.type === HttpEventType.Response) {
-          this.showSuccess('✅ Import réussi!');
-          this.resetForm();
-          this.isUploading.set(false);
+          filesUploaded++;
+          this.uploadNextFile(files, index + 1, filesUploaded, totalFiles);
         }
       },
       error: (err) => {
-        this.showError('❌ Erreur lors de l\'import');
-        this.isUploading.set(false);
+        console.error('Upload error:', err);
+        this.showError(`❌ Erreur lors de l'import du fichier ${file.name}`);
+        this.uploadNextFile(files, index + 1, filesUploaded, totalFiles);
       }
     });
   }
 
   resetForm() {
-    this.selectedFile.set(null);
+    this.selectedFiles.set([]);
     this.selectedFormat.set('');
     this.datasetName.set('');
     this.datasetDescription.set('');
@@ -134,5 +153,12 @@ export class DataUpload {
   private showError(message: string) {
     this.uploadMessage.set(message);
     this.uploadMessageType.set('error');
+  }
+  
+  getFileNamesDisplay(): string {
+    const files = this.selectedFiles();
+    if (files.length === 0) return '';
+    if (files.length === 1) return files[0].name;
+    return `${files.length} fichiers sélectionnés`;
   }
 }
